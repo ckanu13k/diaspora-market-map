@@ -1,0 +1,442 @@
+{
+ "_comment": "Single source of truth for origins (countries/cuisines) used by the map filters AND the OpenStreetMap ingestion. 'key' must match OSM cuisine=* values. Set a region's enabled=false to exclude it from ingestion and filters.",
+ "regions": [
+  {
+   "key": "west_africa",
+   "label": "West Africa",
+   "enabled": true
+  },
+  {
+   "key": "east_africa",
+   "label": "East Africa & Horn",
+   "enabled": true
+  },
+  {
+   "key": "central_africa",
+   "label": "Central Africa",
+   "enabled": true
+  },
+  {
+   "key": "southern_africa",
+   "label": "Southern Africa",
+   "enabled": true
+  },
+  {
+   "key": "africa_general",
+   "label": "Pan-African",
+   "enabled": true
+  },
+  {
+   "key": "caribbean",
+   "label": "Caribbean",
+   "enabled": true
+  },
+  {
+   "key": "caribbean_hispanic",
+   "label": "Hispanic Caribbean",
+   "enabled": false
+  },
+  {
+   "key": "north_africa",
+   "label": "North Africa",
+   "enabled": false
+  }
+ ],
+ "origins": [
+  {
+   "key": "nigerian",
+   "label": "Nigerian",
+   "flag": "🇳🇬",
+   "region": "west_africa",
+   "keywords": [
+    "Nigerian",
+    "Naija",
+    "Suya",
+    "Jollof",
+    "Lagos",
+    "Abuja"
+   ]
+  },
+  {
+   "key": "ghanaian",
+   "label": "Ghanaian",
+   "flag": "🇬🇭",
+   "region": "west_africa",
+   "keywords": [
+    "Ghana",
+    "Ghanaian",
+    "Accra",
+    "Kumasi",
+    "Waakye"
+   ]
+  },
+  {
+   "key": "senegalese",
+   "label": "Senegalese",
+   "flag": "🇸🇳",
+   "region": "west_africa",
+   "keywords": [
+    "Senegal",
+    "Senegalese",
+    "Dakar",
+    "Teranga"
+   ]
+  },
+  {
+   "key": "liberian",
+   "label": "Liberian",
+   "flag": "🇱🇷",
+   "region": "west_africa",
+   "keywords": [
+    "Liberia",
+    "Liberian",
+    "Monrovia"
+   ]
+  },
+  {
+   "key": "sierra_leonean",
+   "label": "Sierra Leonean",
+   "flag": "🇸🇱",
+   "region": "west_africa",
+   "keywords": [
+    "Sierra Leone",
+    "Freetown"
+   ]
+  },
+  {
+   "key": "ivorian",
+   "label": "Ivorian",
+   "flag": "🇨🇮",
+   "region": "west_africa",
+   "keywords": [
+    "Ivoire",
+    "Ivorian",
+    "Abidjan"
+   ]
+  },
+  {
+   "key": "malian",
+   "label": "Malian",
+   "flag": "🇲🇱",
+   "region": "west_africa",
+   "keywords": [
+    "Malian",
+    "Bamako"
+   ]
+  },
+  {
+   "key": "guinean",
+   "label": "Guinean",
+   "flag": "🇬🇳",
+   "region": "west_africa",
+   "keywords": [
+    "Guinea",
+    "Guinean",
+    "Conakry"
+   ]
+  },
+  {
+   "key": "gambian",
+   "label": "Gambian",
+   "flag": "🇬🇲",
+   "region": "west_africa",
+   "keywords": [
+    "Gambia",
+    "Gambian"
+   ]
+  },
+  {
+   "key": "togolese",
+   "label": "Togolese",
+   "flag": "🇹🇬",
+   "region": "west_africa",
+   "keywords": [
+    "Togolese"
+   ]
+  },
+  {
+   "key": "beninese",
+   "label": "Beninese",
+   "flag": "🇧🇯",
+   "region": "west_africa",
+   "keywords": [
+    "Benin",
+    "Beninese"
+   ]
+  },
+  {
+   "key": "west_african",
+   "label": "West African",
+   "flag": "🌍",
+   "region": "west_africa",
+   "keywords": [
+    "West African"
+   ]
+  },
+  {
+   "key": "ethiopian",
+   "label": "Ethiopian",
+   "flag": "🇪🇹",
+   "region": "east_africa",
+   "keywords": [
+    "Ethiopian",
+    "Ethiopia",
+    "Habesha",
+    "Injera",
+    "Addis",
+    "Abyssinia"
+   ]
+  },
+  {
+   "key": "eritrean",
+   "label": "Eritrean",
+   "flag": "🇪🇷",
+   "region": "east_africa",
+   "keywords": [
+    "Eritrean",
+    "Eritrea",
+    "Asmara"
+   ]
+  },
+  {
+   "key": "somali",
+   "label": "Somali",
+   "flag": "🇸🇴",
+   "region": "east_africa",
+   "keywords": [
+    "Somali",
+    "Somalia",
+    "Mogadishu",
+    "Xamar"
+   ]
+  },
+  {
+   "key": "kenyan",
+   "label": "Kenyan",
+   "flag": "🇰🇪",
+   "region": "east_africa",
+   "keywords": [
+    "Kenya",
+    "Kenyan",
+    "Nairobi",
+    "Swahili"
+   ]
+  },
+  {
+   "key": "ugandan",
+   "label": "Ugandan",
+   "flag": "🇺🇬",
+   "region": "east_africa",
+   "keywords": [
+    "Uganda",
+    "Ugandan",
+    "Kampala"
+   ]
+  },
+  {
+   "key": "tanzanian",
+   "label": "Tanzanian",
+   "flag": "🇹🇿",
+   "region": "east_africa",
+   "keywords": [
+    "Tanzania",
+    "Tanzanian",
+    "Zanzibar"
+   ]
+  },
+  {
+   "key": "sudanese",
+   "label": "Sudanese",
+   "flag": "🇸🇩",
+   "region": "east_africa",
+   "keywords": [
+    "Sudan",
+    "Sudanese",
+    "Khartoum"
+   ]
+  },
+  {
+   "key": "east_african",
+   "label": "East African",
+   "flag": "🌍",
+   "region": "east_africa",
+   "keywords": [
+    "East African"
+   ]
+  },
+  {
+   "key": "cameroonian",
+   "label": "Cameroonian",
+   "flag": "🇨🇲",
+   "region": "central_africa",
+   "keywords": [
+    "Cameroon",
+    "Cameroonian",
+    "Douala"
+   ]
+  },
+  {
+   "key": "congolese",
+   "label": "Congolese",
+   "flag": "🇨🇩",
+   "region": "central_africa",
+   "keywords": [
+    "Congo",
+    "Congolese",
+    "Kinshasa"
+   ]
+  },
+  {
+   "key": "south_african",
+   "label": "South African",
+   "flag": "🇿🇦",
+   "region": "southern_africa",
+   "keywords": [
+    "South African",
+    "Braai",
+    "Biltong"
+   ]
+  },
+  {
+   "key": "zimbabwean",
+   "label": "Zimbabwean",
+   "flag": "🇿🇼",
+   "region": "southern_africa",
+   "keywords": [
+    "Zimbabwe",
+    "Zimbabwean"
+   ]
+  },
+  {
+   "key": "african",
+   "label": "African (general)",
+   "flag": "🌍",
+   "region": "africa_general",
+   "keywords": [
+    "African",
+    "Afro",
+    "Africa"
+   ]
+  },
+  {
+   "key": "jamaican",
+   "label": "Jamaican",
+   "flag": "🇯🇲",
+   "region": "caribbean",
+   "keywords": [
+    "Jamaican",
+    "Jamaica",
+    "Jerk"
+   ]
+  },
+  {
+   "key": "haitian",
+   "label": "Haitian",
+   "flag": "🇭🇹",
+   "region": "caribbean",
+   "keywords": [
+    "Haitian",
+    "Haiti",
+    "Kreyol",
+    "Griot"
+   ]
+  },
+  {
+   "key": "trinidadian",
+   "label": "Trinidadian",
+   "flag": "🇹🇹",
+   "region": "caribbean",
+   "keywords": [
+    "Trini",
+    "Trinidad"
+   ]
+  },
+  {
+   "key": "guyanese",
+   "label": "Guyanese",
+   "flag": "🇬🇾",
+   "region": "caribbean",
+   "keywords": [
+    "Guyana",
+    "Guyanese"
+   ]
+  },
+  {
+   "key": "barbadian",
+   "label": "Bajan",
+   "flag": "🇧🇧",
+   "region": "caribbean",
+   "keywords": [
+    "Bajan",
+    "Barbados"
+   ]
+  },
+  {
+   "key": "bahamian",
+   "label": "Bahamian",
+   "flag": "🇧🇸",
+   "region": "caribbean",
+   "keywords": [
+    "Bahamian",
+    "Bahamas"
+   ]
+  },
+  {
+   "key": "grenadian",
+   "label": "Grenadian",
+   "flag": "🇬🇩",
+   "region": "caribbean",
+   "keywords": [
+    "Grenada",
+    "Grenadian"
+   ]
+  },
+  {
+   "key": "caribbean",
+   "label": "Caribbean (general)",
+   "flag": "🌴",
+   "region": "caribbean",
+   "keywords": [
+    "Caribbean",
+    "West Indian",
+    "West Indies",
+    "Antillean"
+   ]
+  },
+  {
+   "key": "cuban",
+   "label": "Cuban",
+   "flag": "🇨🇺",
+   "region": "caribbean_hispanic",
+   "keywords": []
+  },
+  {
+   "key": "puerto_rican",
+   "label": "Puerto Rican",
+   "flag": "🇵🇷",
+   "region": "caribbean_hispanic",
+   "keywords": []
+  },
+  {
+   "key": "dominican",
+   "label": "Dominican",
+   "flag": "🇩🇴",
+   "region": "caribbean_hispanic",
+   "keywords": []
+  },
+  {
+   "key": "moroccan",
+   "label": "Moroccan",
+   "flag": "🇲🇦",
+   "region": "north_africa",
+   "keywords": []
+  },
+  {
+   "key": "egyptian",
+   "label": "Egyptian",
+   "flag": "🇪🇬",
+   "region": "north_africa",
+   "keywords": []
+  }
+ ]
+}

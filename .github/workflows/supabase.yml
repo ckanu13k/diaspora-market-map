@@ -1,0 +1,38 @@
+name: Deploy Supabase (database + payment functions)
+
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/**']
+  workflow_dispatch:
+
+jobs:
+  supabase:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      HAS_STRIPE: ${{ secrets.STRIPE_SECRET_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Link project
+        run: supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+      - name: Apply database migrations
+        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
+      - name: Set function secrets
+        if: env.HAS_STRIPE == 'true'
+        run: |
+          supabase secrets set --project-ref "$PROJECT_REF" \
+            STRIPE_SECRET_KEY="${{ secrets.STRIPE_SECRET_KEY }}" \
+            STRIPE_WEBHOOK_SECRET="${{ secrets.STRIPE_WEBHOOK_SECRET }}" \
+            STRIPE_PRICE_MONTHLY="${{ secrets.STRIPE_PRICE_MONTHLY }}" \
+            STRIPE_PRICE_YEARLY="${{ secrets.STRIPE_PRICE_YEARLY }}" \
+            APP_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+      - name: Deploy edge functions
+        run: |
+          supabase functions deploy create-checkout --project-ref "$PROJECT_REF"
+          supabase functions deploy customer-portal --project-ref "$PROJECT_REF"
+          supabase functions deploy stripe-webhook  --project-ref "$PROJECT_REF" --no-verify-jwt

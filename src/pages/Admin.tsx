@@ -1,0 +1,201 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { useStore } from '../lib/store';
+import { originLabel, ORIGINS } from '../lib/taxonomy';
+import type { Details, Place, PlaceStatus, Report } from '../lib/types';
+
+type Tab = 'reports' | 'new' | 'places';
+
+export default function Admin() {
+  const { account, places, reloadPlaces, notify } = useStore();
+  const [tab, setTab] = useState<Tab>('reports');
+  const [reports, setReports] = useState<Report[]>([]);
+
+  const loadReports = useCallback(async () => {
+    const { data, error } = await supabase.from('reports').select('*').eq('status', 'open').order('created_at', { ascending: false }).limit(500);
+    if (error) notify(error.message); else setReports(data as Report[]);
+  }, [notify]);
+  useEffect(() => { if (account?.is_admin) loadReports(); }, [account?.is_admin, loadReports]);
+
+  const stats = useMemo(() => {
+    const s = { total: places.length, verified: 0, community: 0, possibly_closed: 0, markets: 0 };
+    for (const p of places) {
+      if (p.verification === 'verified') s.verified++;
+      if (p.verification === 'community') s.community++;
+      if (p.status === 'possibly_closed') s.possibly_closed++;
+      if (p.kind === 'market') s.markets++;
+    }
+    return s;
+  }, [places]);
+
+  if (!account?.is_admin) return <div className="card narrow"><h1>Admin</h1><p>This page is for the site owner only.</p><Link to="/">Back to map</Link></div>;
+
+  const resolve = async (id: string, status: 'resolved' | 'rejected') => {
+    const { error } = await supabase.from('reports').update({ status, resolved_at: new Date().toISOString() }).eq('id', id);
+    if (error) return notify(error.message);
+    setReports((r) => r.filter((x) => x.id !== id));
+  };
+
+  const fixes = reports.filter((r) => r.kind !== 'new_place');
+  const suggestions = reports.filter((r) => r.kind === 'new_place');
+
+  return (
+    <div className="card wide">
+      <h1>Admin console</h1>
+      <div className="stats">
+        <div><b>{stats.total.toLocaleString()}</b>places</div>
+        <div><b>{stats.markets.toLocaleString()}</b>markets</div>
+        <div><b>{stats.verified}</b>verified</div>
+        <div><b>{stats.community}</b>community</div>
+        <div><b>{stats.possibly_closed}</b>may be closed</div>
+      </div>
+      <div className="seg">
+        <button className={tab === 'reports' ? 'on' : ''} onClick={() => setTab('reports')}>Fix reports ({fixes.length})</button>
+        <button className={tab === 'new' ? 'on' : ''} onClick={() => setTab('new')}>New places ({suggestions.length})</button>
+        <button className={tab === 'places' ? 'on' : ''} onClick={() => setTab('places')}>Edit / verify</button>
+      </div>
+
+      {tab === 'reports' && (
+        <ul className="admin-list">
+          {!fixes.length && <li className="muted">No open reports 🎉</li>}
+          {fixes.map((r) => {
+            const p = places.find((x) => x.id === r.place_id);
+            return (
+              <li key={r.id}>
+                <div><strong>{r.kind.replace('_', ' ')}</strong> · {p ? <Link to={`/place/${p.id}`}>{p.name}</Link> : 'unknown place'} {p && <span className="muted">({p.city ?? ''} {p.state})</span>}</div>
+                {r.message && <p>{r.message}</p>}
+                <p className="muted tiny">{new Date(r.created_at).toLocaleString()}</p>
+                <div className="actions">
+                  {p && r.kind === 'closed' && <button className="btn" onClick={async () => { await supabase.rpc('admin_set_status', { p_place: p.id, p_status: 'closed' }); await resolve(r.id, 'resolved'); reloadPlaces(); }}>Mark closed</button>}
+                  <button className="btn primary" onClick={() => resolve(r.id, 'resolved')}>Resolved</button>
+                  <button className="btn ghost" onClick={() => resolve(r.id, 'rejected')}>Reject</button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {tab === 'new' && (
+        <ul className="admin-list">
+          {!suggestions.length && <li className="muted">No suggestions waiting.</li>}
+          {suggestions.map((r) => <Suggestion key={r.id} report={r} onDone={() => { setReports((x) => x.filter((y) => y.id !== r.id)); reloadPlaces(); }} onReject={() => resolve(r.id, 'rejected')} />)}
+        </ul>
+      )}
+
+      {tab === 'places' && <PlaceEditor />}
+    </div>
+  );
+}
+
+function Suggestion({ report, onDone, onReject }: { report: Report; onDone: () => void; onReject: () => void }) {
+  const { notify } = useStore();
+  const p = report.payload as Record<string, string | number | string[] | null>;
+  const [coords, setCoords] = useState(p.lat != null ? `${p.lat}, ${p.lng}` : '');
+  const approve = async () => {
+    const [lat, lng] = coords.split(',').map((s) => Number(s.trim()));
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return notify('Paste coordinates as "lat, lng" (right-click the spot in Google Maps to copy them)');
+    const { error } = await supabase.rpc('admin_approve_new_place', { p_report: report.id, p_lat: lat, p_lng: lng });
+    if (error) return notify(error.message);
+    notify('Added to the map as verified');
+    onDone();
+  };
+  const q = encodeURIComponent([p.name, p.street, p.city, p.state].filter(Boolean).join(' '));
+  return (
+    <li>
+      <strong>{String(p.name)}</strong> · {String(p.kind)} · {[p.street, p.city, p.state, p.postcode].filter(Boolean).join(', ')}
+      <p className="muted small">{(p.origins as string[] | null)?.map(originLabel).join(', ')} {p.phone && `· ${p.phone}`} {p.website && `· ${p.website}`}</p>
+      {p.description && <p>{String(p.description)}</p>}
+      <div className="filter-row">
+        <input placeholder="lat, lng" value={coords} onChange={(e) => setCoords(e.target.value)} />
+        <a className="btn" href={`https://www.google.com/maps/search/?api=1&query=${q}`} target="_blank" rel="noreferrer">Look up ↗</a>
+      </div>
+      <div className="actions">
+        <button className="btn primary" onClick={approve}>Approve & verify</button>
+        <button className="btn ghost" onClick={onReject}>Reject</button>
+      </div>
+    </li>
+  );
+}
+
+const DETAIL_FIELDS: (keyof Details)[] = ['street', 'postcode', 'phone', 'website', 'opening_hours', 'instagram', 'facebook', 'description', 'verification_note'];
+
+function PlaceEditor() {
+  const { places, patchPlace, notify } = useStore();
+  const [q, setQ] = useState('');
+  const [sel, setSel] = useState<Place | null>(null);
+  const [d, setD] = useState<Partial<Details>>({});
+  const [meta, setMeta] = useState<Partial<Place>>({});
+
+  const matches = useMemo(() => {
+    const n = q.trim().toLowerCase();
+    return n.length < 2 ? [] : places.filter((p) => `${p.name} ${p.city ?? ''} ${p.state}`.toLowerCase().includes(n)).slice(0, 25);
+  }, [q, places]);
+
+  const open = async (p: Place) => {
+    setSel(p);
+    setMeta({ name: p.name, kind: p.kind, city: p.city, origins: p.origins, featured: p.featured, status: p.status });
+    const { data } = await supabase.from('place_details').select('*').eq('place_id', p.id).maybeSingle();
+    setD((data as Details) ?? {});
+  };
+
+  const save = async (verify: boolean) => {
+    if (!sel) return;
+    const origins = meta.origins ?? [];
+    const placePatch = { ...meta, regions: [...new Set(origins.map((o) => ORIGINS.find((x) => x.key === o)?.region).filter(Boolean))] as string[] };
+    const { status, ...rest } = placePatch;
+    const e1 = (await supabase.from('places').update(rest).eq('id', sel.id)).error;
+    if (e1) return notify(e1.message);
+    if (status && status !== sel.status) await supabase.rpc('admin_set_status', { p_place: sel.id, p_status: status as PlaceStatus });
+    const detailRow = Object.fromEntries(DETAIL_FIELDS.map((k) => [k, (d[k] as string | null | undefined)?.toString().trim() || null]));
+    const e2 = (await supabase.from('place_details').upsert({ place_id: sel.id, ...detailRow, locked: true })).error;
+    if (e2) return notify(e2.message);
+    if (verify) {
+      const e3 = (await supabase.rpc('admin_verify_place', { p_place: sel.id, p_note: d.verification_note || null })).error;
+      if (e3) return notify(e3.message);
+    }
+    const { data } = await supabase.from('places').select('*').eq('id', sel.id).single();
+    if (data) { patchPlace(sel.id, data as Place); setSel(data as Place); }
+    notify(verify ? 'Saved and verified ✔' : 'Saved');
+  };
+
+  return (
+    <div className="editor">
+      <input className="search" placeholder="Find a place by name or city…" value={q} onChange={(e) => setQ(e.target.value)} />
+      {!sel && <ul className="admin-list">{matches.map((p) => <li key={p.id}><button className="linkish" onClick={() => open(p)}>{p.name}</button> <span className="muted">{p.city} {p.state} · {p.verification} · {p.status}</span></li>)}</ul>}
+      {sel && (
+        <div className="stack">
+          <p><button className="linkish" onClick={() => setSel(null)}>← back to search</button> · <Link to={`/place/${sel.id}`}>view on map</Link></p>
+          <label className="field">Name<input value={meta.name ?? ''} onChange={(e) => setMeta({ ...meta, name: e.target.value })} /></label>
+          <div className="filter-row">
+            <label className="field">Kind<select value={meta.kind} onChange={(e) => setMeta({ ...meta, kind: e.target.value as Place['kind'] })}><option value="restaurant">Restaurant</option><option value="market">Market</option></select></label>
+            <label className="field">City<input value={meta.city ?? ''} onChange={(e) => setMeta({ ...meta, city: e.target.value || null })} /></label>
+            <label className="field">Status<select value={meta.status} onChange={(e) => setMeta({ ...meta, status: e.target.value as PlaceStatus })}>
+              <option value="active">Active</option><option value="possibly_closed">Possibly closed</option><option value="closed">Closed</option><option value="removed">Removed (hide)</option>
+            </select></label>
+          </div>
+          <div className="field">Origins
+            <div className="chips wrap">{ORIGINS.map((o) => (
+              <button type="button" key={o.key} className={`chip ${meta.origins?.includes(o.key) ? 'on' : ''}`}
+                onClick={() => setMeta({ ...meta, origins: meta.origins?.includes(o.key) ? meta.origins.filter((x) => x !== o.key) : [...(meta.origins ?? []), o.key] })}>{o.flag} {o.label}</button>
+            ))}</div>
+          </div>
+          <label className="toggles"><input type="checkbox" checked={!!meta.featured} onChange={(e) => setMeta({ ...meta, featured: e.target.checked })} /> Featured (paid listing / editor's pick)</label>
+          {DETAIL_FIELDS.map((k) => (
+            <label key={k} className="field">{k.replace('_', ' ')}
+              {k === 'description' || k === 'verification_note'
+                ? <textarea rows={2} value={(d[k] as string) ?? ''} onChange={(e) => setD({ ...d, [k]: e.target.value })} placeholder={k === 'verification_note' ? 'e.g. Called and confirmed hours, 11/18/2026' : ''} />
+                : <input value={(d[k] as string) ?? ''} onChange={(e) => setD({ ...d, [k]: e.target.value })} />}
+            </label>
+          ))}
+          <p className="muted tiny">Saving locks this place, so the weekly OpenStreetMap import won't overwrite your edits.</p>
+          <div className="actions">
+            <button className="btn primary" onClick={() => save(true)}>Save & mark verified ✔</button>
+            <button className="btn" onClick={() => save(false)}>Save only</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
