@@ -386,7 +386,12 @@ create policy reports_insert on public.reports for insert with check (user_id = 
 create policy reports_read   on public.reports for select using (user_id = auth.uid() or public.is_admin());
 create policy reports_admin  on public.reports for update using (public.is_admin()) with check (public.is_admin());
 
--- ───────────────────────── Function privileges ─────────────────────────
+-- ───────────────────────── Privileges ─────────────────────────
+-- Explicit grants (newer Supabase projects can be created with auto-grant off). RLS above still decides row access.
+grant usage on schema public to anon, authenticated, service_role;
+grant all on all tables in schema public to anon, authenticated, service_role;
+grant execute on all functions in schema public to anon, authenticated, service_role;
+
 revoke execute on function public.ingest_osm_places(jsonb)      from public, anon, authenticated;
 revoke execute on function public.mark_missing_osm(timestamptz) from public, anon, authenticated;
 grant  execute on function public.ingest_osm_places(jsonb)      to service_role;
