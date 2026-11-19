@@ -41,7 +41,7 @@ export function createOverture(taxonomy) {
 
   function toRow(rec) {
     const name = typeof rec.name === 'string' ? rec.name.trim() : '';
-    if (!name) return null;
+    if (!name || /^\W*inactive\W|\bpermanently closed\b|\(closed\)|\bclosed down\b/i.test(name)) return null;
     if (rec.operating_status && rec.operating_status !== 'open') return null;
     const addr = rec.addr ?? {};
     if (addr.country && addr.country !== 'US') return null;
@@ -69,6 +69,10 @@ export function createOverture(taxonomy) {
     const reg = (o) => BY_KEY.get(o).region;
     if ([...origins].some((o) => reg(o) !== 'africa_general' && reg(o).endsWith('africa'))) origins.delete('african');
     if ([...origins].some((o) => o !== 'caribbean' && reg(o) === 'caribbean')) origins.delete('caribbean');
+    // A specific country beats its regional bucket (Ethiopian beats East African)
+    for (const generic of ['west_african', 'east_african']) {
+      if (origins.has(generic) && [...origins].some((o) => o !== generic && reg(o) === reg(generic))) origins.delete(generic);
+    }
     if (!origins.size) return null;
 
     const isMarket = cats.some(isMarketCat);

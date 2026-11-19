@@ -44,4 +44,7 @@ assert.equal(toRow(rec({ name: 'Jamaica Halal Food', cats: ['halal_restaurant'] 
 assert.equal(toRow(rec({ name: 'Caribbean Fixture Freight', cats: ['shipping_center', 'freight_and_cargo_service'] })), null, 'not food');
 assert.equal(toRow(rec({ name: 'Fixture African Market', cats: ['marketing_agency'] })), null, 'marketing is not a market');
 
+assert.equal(toRow(rec({ name: '[inactive] Fixture Kitchen', cats: ['nigerian_restaurant'] })), null, 'inactive prefix');
+assert.deepEqual(toRow(rec({ name: 'Fixture Blue Nile', cats: ['ethiopian_restaurant', 'east_african_restaurant'] })).origins, ['ethiopian'], 'specific beats regional');
+
 console.log('✓ all Overture mapping tests passed');
