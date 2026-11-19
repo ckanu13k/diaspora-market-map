@@ -79,3 +79,10 @@ export const BrandMark = ({ size = 30 }: { size?: number }) => (
     <circle cx="16" cy="13.3" r="2.9" fill="#D69A1D" />
   </svg>
 );
+
+export const IconThumbUp = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M7 10.5V20H4.5a1 1 0 0 1-1-1v-7.5a1 1 0 0 1 1-1H7Z" /><path d="M7 10.5 11 3.5a2.2 2.2 0 0 1 2.6 2.4L13 10h5.3a2 2 0 0 1 2 2.4l-1.3 6A2 2 0 0 1 17 20H7" /></svg>
+);
+export const IconThumbDown = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M17 13.5V4h2.5a1 1 0 0 1 1 1v7.5a1 1 0 0 1-1 1H17Z" /><path d="M17 13.5 13 20.5a2.2 2.2 0 0 1-2.6-2.4L11 14H5.7a2 2 0 0 1-2-2.4l1.3-6A2 2 0 0 1 7 4h10" /></svg>
+);

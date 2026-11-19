@@ -5,12 +5,13 @@ import { useStore } from '../lib/store';
 import { originLabel, ORIGINS } from '../lib/taxonomy';
 import type { Details, Place, PlaceStatus, Report } from '../lib/types';
 
-type Tab = 'reports' | 'new' | 'places';
+type Tab = 'reports' | 'new' | 'disputed' | 'places';
 
 export default function Admin() {
   const { account, places, reloadPlaces, notify } = useStore();
   const [tab, setTab] = useState<Tab>('reports');
   const [reports, setReports] = useState<Report[]>([]);
+  const [editing, setEditing] = useState<Place | null>(null);
 
   const loadReports = useCallback(async () => {
     const { data, error } = await supabase.from('reports').select('*').eq('status', 'open').order('created_at', { ascending: false }).limit(500);
@@ -19,8 +20,9 @@ export default function Admin() {
   useEffect(() => { if (account?.is_admin) loadReports(); }, [account?.is_admin, loadReports]);
 
   const stats = useMemo(() => {
-    const s = { total: places.length, verified: 0, community: 0, possibly_closed: 0, markets: 0 };
+    const s = { total: places.length, verified: 0, community: 0, possibly_closed: 0, markets: 0, disputed: 0 };
     for (const p of places) {
+      if (p.inaccurate_votes > 0) s.disputed++;
       if (p.verification === 'verified') s.verified++;
       if (p.verification === 'community') s.community++;
       if (p.status === 'possibly_closed') s.possibly_closed++;
@@ -37,6 +39,9 @@ export default function Admin() {
     setReports((r) => r.filter((x) => x.id !== id));
   };
 
+  const disputed = places.filter((p) => p.inaccurate_votes > 0)
+    .sort((a, b) => b.inaccurate_votes - a.inaccurate_votes || a.accurate_votes - b.accurate_votes);
+  const review = (p: Place) => { setEditing(p); setTab('places'); };
   const fixes = reports.filter((r) => r.kind !== 'new_place');
   const suggestions = reports.filter((r) => r.kind === 'new_place');
 
@@ -49,11 +54,13 @@ export default function Admin() {
         <div><b>{stats.verified}</b>verified</div>
         <div><b>{stats.community}</b>community</div>
         <div><b>{stats.possibly_closed}</b>may be closed</div>
+        <div><b>{stats.disputed}</b>with disputed details</div>
       </div>
       <div className="seg">
         <button className={tab === 'reports' ? 'on' : ''} onClick={() => setTab('reports')}>Fix reports ({fixes.length})</button>
         <button className={tab === 'new' ? 'on' : ''} onClick={() => setTab('new')}>New places ({suggestions.length})</button>
-        <button className={tab === 'places' ? 'on' : ''} onClick={() => setTab('places')}>Edit / verify</button>
+        <button className={tab === 'disputed' ? 'on' : ''} onClick={() => setTab('disputed')}>Disputed details ({disputed.length})</button>
+        <button className={tab === 'places' ? 'on' : ''} onClick={() => { setEditing(null); setTab('places'); }}>Edit and verify</button>
       </div>
 
       {tab === 'reports' && (
@@ -84,7 +91,25 @@ export default function Admin() {
         </ul>
       )}
 
-      {tab === 'places' && <PlaceEditor />}
+      {tab === 'disputed' && (
+        <ul className="admin-list">
+          {!disputed.length && <li className="muted">No one has flagged details as wrong.</li>}
+          {disputed.slice(0, 200).map((p) => (
+            <li key={p.id} className="disputed-row">
+              <div>
+                <strong>{p.name}</strong> <span className="muted">{p.city ? `${p.city}, ` : ''}{p.state}</span>
+                <p className="muted small">{p.inaccurate_votes} say wrong, {p.accurate_votes} say correct. Check open reports for what they said.</p>
+              </div>
+              <div className="actions">
+                <Link className="btn" to={`/place/${p.id}`}>View on map</Link>
+                <button className="btn primary" onClick={() => review(p)}>Review and fix</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {tab === 'places' && <PlaceEditor key={editing?.id ?? 'search'} initial={editing} />}
     </div>
   );
 }
@@ -121,7 +146,7 @@ function Suggestion({ report, onDone, onReject }: { report: Report; onDone: () =
 
 const DETAIL_FIELDS: (keyof Details)[] = ['street', 'postcode', 'phone', 'website', 'opening_hours', 'instagram', 'facebook', 'description', 'verification_note'];
 
-function PlaceEditor() {
+function PlaceEditor({ initial = null }: { initial?: Place | null }) {
   const { places, patchPlace, notify } = useStore();
   const [q, setQ] = useState('');
   const [sel, setSel] = useState<Place | null>(null);
@@ -139,6 +164,8 @@ function PlaceEditor() {
     const { data } = await supabase.from('place_details').select('*').eq('place_id', p.id).maybeSingle();
     setD((data as Details) ?? {});
   };
+
+  useEffect(() => { if (initial) open(initial); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   const save = async (verify: boolean) => {
     if (!sel) return;
@@ -189,7 +216,7 @@ function PlaceEditor() {
                 : <input value={(d[k] as string) ?? ''} onChange={(e) => setD({ ...d, [k]: e.target.value })} />}
             </label>
           ))}
-          <p className="muted tiny">Saving locks this place, so listing imports won't overwrite your edits.</p>
+          <p className="muted tiny">Saving locks this place, so listing imports won't overwrite your edits. "Save and mark verified" also resets the thumbs up/down count, because older ratings no longer apply.</p>
           <div className="actions">
             <button className="btn primary" onClick={() => save(true)}>Save and mark verified</button>
             <button className="btn" onClick={() => save(false)}>Save only</button>

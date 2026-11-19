@@ -17,6 +17,8 @@ export interface Place {
   verified_at: string | null;
   featured: boolean;
   confirm_count: number;
+  accurate_votes: number;
+  inaccurate_votes: number;
   last_confirmed_at: string | null;
   source: 'osm' | 'overture' | 'community' | 'owner' | 'admin';
   osm_id: string | null;
@@ -67,4 +69,4 @@ export interface Report {
 }
 
 export const PLACE_COLUMNS =
-  'id,name,kind,origins,regions,city,state,lat,lng,status,verification,verified_at,featured,confirm_count,last_confirmed_at,source,osm_id,updated_at';
+  'id,name,kind,origins,regions,city,state,lat,lng,status,verification,verified_at,featured,confirm_count,accurate_votes,inaccurate_votes,last_confirmed_at,source,osm_id,updated_at';

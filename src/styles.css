@@ -215,6 +215,22 @@ code { font-size: 0.9em; background: var(--indigo-50); padding: 0.1em 0.35em; bo
 .action[aria-pressed='true'], .action[aria-pressed='true'] svg { color: var(--hibiscus); }
 .source { margin-top: 0.75rem; font-size: 0.75rem; color: var(--muted); }
 
+/* thumbs up / down on details */
+.vote { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; padding: 0.7rem 0.85rem; border: 1px solid var(--line); border-radius: var(--r-md); }
+.vote-btns { display: inline-flex; gap: 0.4rem; flex: none; }
+.vote-q { flex: 1 1 10rem; font-size: 0.875rem; font-weight: 600; color: var(--ink-2); }
+.vote-btn {
+  display: inline-flex; align-items: center; gap: 0.35rem; height: 36px; padding: 0 0.75rem;
+  border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface);
+  font-size: 0.875rem; font-weight: 600; color: var(--ink-2); cursor: pointer;
+}
+.vote-btn:hover:not(:disabled) { border-color: var(--indigo-400); }
+.vote-btn:disabled { opacity: 0.6; cursor: default; }
+.vote-btn.up.on { background: var(--indigo-800); border-color: var(--indigo-800); color: #fff; }
+.vote-btn.down.on { background: var(--hibiscus); border-color: var(--hibiscus); color: #fff; }
+.vote-n { font-variant-numeric: tabular-nums; font-weight: 500; opacity: 0.8; padding-left: 0.1rem; }
+.vote-summary { font-size: 0.8125rem !important; color: var(--muted) !important; }
+
 /* ── buttons ───────────────────────────────────────────── */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 42px;
@@ -267,6 +283,8 @@ code { font-size: 0.9em; background: var(--indigo-50); padding: 0.1em 0.35em; bo
 .admin-list li { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 0.9rem 1rem; }
 .admin-list li p { margin: 0.3rem 0; }
 .editor { margin-top: 1rem; }
+.disputed-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.disputed-row .actions { margin: 0; }
 .page .seg { margin: 0.25rem 0 0.5rem; }
 
 /* ── pricing ───────────────────────────────────────────── */

@@ -11,7 +11,12 @@ export function Badge({ place, quiet = false }: { place: Place; quiet?: boolean 
   return <span className="badge listed" title="From public business data; not yet confirmed">Not yet confirmed</span>;
 }
 
+/** Two or more "details are wrong" votes outnumbering the "correct" ones. */
+export const detailsDisputed = (p: Place) => p.inaccurate_votes >= 2 && p.inaccurate_votes > p.accurate_votes;
+
 export function StatusBadge({ place }: { place: Place }) {
+  if (place.status === 'active' && detailsDisputed(place))
+    return <span className="badge warn" title="People have reported that some details may be wrong">Details may be out of date</span>;
   if (place.status === 'possibly_closed') return <span className="badge warn" title="Reported closed, or missing from the latest business data">May be closed</span>;
   if (place.status === 'closed') return <span className="badge closed">Closed</span>;
   return null;

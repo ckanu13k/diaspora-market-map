@@ -136,4 +136,25 @@ assert.equal(one(await asService(`select mark_missing_source('overture', now() -
 await asService(`select ingest_places($1::jsonb, 'overture')`, [JSON.stringify([ov(3)])]);
 assert.equal(one(await db.query(`select status from places where source_ref='overture:o3'`)).status, 'active', 'reappears → active');
 
+// ── detail accuracy votes
+const vp = ids[4];
+await asUser(U(1), `insert into detail_votes (user_id, place_id, vote) values ($1, $2, 1)`, [U(1), vp]);
+await asUser(U(2), `insert into detail_votes (user_id, place_id, vote) values ($1, $2, -1)`, [U(2), vp]);
+await asUser(U(3), `insert into detail_votes (user_id, place_id, vote) values ($1, $2, -1)`, [U(3), vp]);
+let tally = one(await db.query(`select accurate_votes a, inaccurate_votes i from places where id = $1`, [vp]));
+assert.deepEqual(tally, { a: 1, i: 2 });
+await asUser(U(2), `update detail_votes set vote = 1 where user_id = $1 and place_id = $2`, [U(2), vp]);
+tally = one(await db.query(`select accurate_votes a, inaccurate_votes i from places where id = $1`, [vp]));
+assert.deepEqual(tally, { a: 2, i: 1 }, 'changing a vote moves the tally');
+await assert.rejects(asUser(U(1), `insert into detail_votes (user_id, place_id, vote) values ($1, $2, 1)`, [U(2), ids[5]]), /row-level security/, 'cannot vote as someone else');
+await assert.rejects(asUser(U(1), `insert into detail_votes (user_id, place_id, vote) values ($1, $2, 5)`, [U(1), ids[5]]), /check constraint/);
+assert.equal((await asUser(U(1), `select * from detail_votes`)).rows.length, 1, 'users see only their own votes');
+await assert.rejects(asUser(null, `insert into detail_votes (place_id, vote) values ($1, 1)`, [vp]), /permission denied|row-level security|null value/);
+await asUser(U(5), `select admin_verify_place($1, 'rechecked')`, [vp]);
+tally = one(await db.query(`select accurate_votes a, inaccurate_votes i from places where id = $1`, [vp]));
+assert.deepEqual(tally, { a: 0, i: 0 }, 'admin verification resets the tally');
+await asUser(U(3), `update detail_votes set vote = -1 where user_id = $1 and place_id = $2`, [U(3), vp]);
+tally = one(await db.query(`select accurate_votes a, inaccurate_votes i from places where id = $1`, [vp]));
+assert.deepEqual(tally, { a: 0, i: 1 }, 'only votes after verification count');
+
 console.log('✓ all database tests passed');

@@ -5,7 +5,7 @@ import { useStore } from '../lib/store';
 import { ORIGIN, prettyHours, SERVICE_LABEL, US_STATES } from '../lib/taxonomy';
 import type { DetailsResult, Place } from '../lib/types';
 import { Badge, StatusBadge } from './Badge';
-import { IconCheck, IconClock, IconClose, IconFlag, IconGlobe, IconHeart, IconHeartFilled, IconLock, IconPhone, IconPin, IconRoute, IconShare } from './Icons';
+import { IconCheck, IconClock, IconClose, IconFlag, IconGlobe, IconHeart, IconHeartFilled, IconLock, IconPhone, IconPin, IconRoute, IconShare, IconThumbDown, IconThumbUp } from './Icons';
 import ReportDialog from './ReportDialog';
 
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null);
@@ -14,7 +14,9 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
   const { session, account, refreshAccount, favorites, toggleFavorite, notify, patchPlace } = useStore();
   const [res, setRes] = useState<DetailsResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [reporting, setReporting] = useState(false);
+  const [reporting, setReporting] = useState<false | 'fix' | 'wrong'>(false);
+  const [myVote, setMyVote] = useState<1 | -1 | null>(null);
+  const [voting, setVoting] = useState(false);
   const premium = account?.plan === 'premium' || account?.is_admin;
 
   const loadDetails = async () => {
@@ -32,6 +34,32 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
     if (session && premium) loadDetails();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [place.id, session?.user.id, premium]);
+
+  // The signed-in user's own thumbs up/down for this place, if any
+  useEffect(() => {
+    setMyVote(null);
+    if (!session) return;
+    supabase.from('detail_votes').select('vote').eq('place_id', place.id).eq('user_id', session.user.id).maybeSingle()
+      .then(({ data }) => setMyVote((data?.vote as 1 | -1 | undefined) ?? null));
+  }, [place.id, session?.user.id]);
+
+  const vote = async (v: 1 | -1) => {
+    if (!session) return notify('Sign in to rate these details');
+    if (voting) return;
+    setVoting(true);
+    const undo = myVote === v;
+    const { error } = undo
+      ? await supabase.from('detail_votes').delete().eq('place_id', place.id).eq('user_id', session.user.id)
+      : await supabase.from('detail_votes').upsert({ user_id: session.user.id, place_id: place.id, vote: v });
+    if (error) { setVoting(false); return notify(error.message); }
+    setMyVote(undo ? null : v);
+    const { data } = await supabase.from('places').select('accurate_votes,inaccurate_votes').eq('id', place.id).single();
+    if (data) patchPlace(place.id, data);
+    setVoting(false);
+    if (undo) notify('Rating removed');
+    else if (v === 1) notify('Thanks. Marked these details as correct.');
+    else setReporting('wrong');
+  };
 
   const confirmOpen = async () => {
     if (!session) return notify('Sign in to confirm a place is open');
@@ -84,6 +112,11 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
           {place.confirm_count > 0 && <>{place.confirm_count} {place.confirm_count === 1 ? 'person has' : 'people have'} confirmed it's open in the last 90 days. </>}
           {place.verification === 'listed' && place.confirm_count === 0 && <>From public business data. Been here lately? Tap "Still open" to confirm it.</>}
         </p>
+        {place.accurate_votes + place.inaccurate_votes > 0 && (
+          <p className="vote-summary">
+            {place.accurate_votes} of {place.accurate_votes + place.inaccurate_votes} {place.accurate_votes + place.inaccurate_votes === 1 ? 'person says' : 'people say'} the details are correct.
+          </p>
+        )}
       </div>
 
       <section className="details" aria-live="polite">
@@ -130,18 +163,32 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
             {!d.phone && !d.website && !d.opening_hours && !address && <li className="note"><span>We don't have contact details for this place yet. If you know them, use "Suggest a fix".</span></li>}
           </ul>
         )}
+        {d && (
+          <div className="vote" role="group" aria-label="Are these details correct?">
+            <span className="vote-q">Are these details correct?</span>
+            <span className="vote-btns">
+            <button className={`vote-btn up ${myVote === 1 ? 'on' : ''}`} onClick={() => vote(1)} aria-pressed={myVote === 1} disabled={voting}>
+              <IconThumbUp width={18} height={18} />Yes{place.accurate_votes > 0 && <span className="vote-n">{place.accurate_votes}</span>}
+            </button>
+            <button className={`vote-btn down ${myVote === -1 ? 'on' : ''}`} onClick={() => vote(-1)} aria-pressed={myVote === -1} disabled={voting}>
+              <IconThumbDown width={18} height={18} />No{place.inaccurate_votes > 0 && <span className="vote-n">{place.inaccurate_votes}</span>}
+            </button>
+            </span>
+          </div>
+        )}
       </section>
 
       <div className="panel-actions">
         <button className="action" onClick={confirmOpen}><IconCheck />Still open</button>
         <button className="action" onClick={fav} aria-pressed={saved}>{saved ? <IconHeartFilled /> : <IconHeart />}{saved ? 'Saved' : 'Save'}</button>
         <button className="action" onClick={share}><IconShare />Share</button>
-        <button className="action" onClick={() => (session ? setReporting(true) : notify('Sign in to suggest a fix'))}><IconFlag />Suggest a fix</button>
+        <button className="action" onClick={() => (session ? setReporting('fix') : notify('Sign in to suggest a fix'))}><IconFlag />Suggest a fix</button>
       </div>
 
       {place.source === 'overture' && <p className="source">Listing from Overture Maps Foundation, updated {fmtDate(place.updated_at)}.</p>}
       {place.source === 'community' && <p className="source">Added by the community and checked by our team.</p>}
-      {reporting && <ReportDialog place={place} onClose={() => setReporting(false)} />}
+      {reporting === 'fix' && <ReportDialog place={place} onClose={() => setReporting(false)} />}
+      {reporting === 'wrong' && <ReportDialog place={place} title="Thanks. What's wrong with these details?" onClose={() => setReporting(false)} />}
     </article>
   );
 }

@@ -21,7 +21,7 @@ interface Store {
 const Ctx = createContext<Store>(null as unknown as Store);
 export const useStore = () => useContext(Ctx);
 
-const CACHE_KEY = 'dmm.places.v1';
+const CACHE_KEY = 'dmm.places.v2';
 const PAGE = 1000;
 
 function readCache(): Place[] | null {
