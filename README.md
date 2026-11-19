@@ -34,50 +34,31 @@ The paywall is enforced **in the database**. `place_details` has no public read 
 
 ---
 
-## One-time setup (~30 min)
+## Setup status
 
-### 1. Supabase
-1. Create a project at supabase.com and note the **Project ref** (in the URL) and the **DB password**.
-2. **Settings → API:** copy the `Project URL`, the `anon` public key, and the `service_role` key.
-3. **Authentication → URL Configuration:** set Site URL to `https://ckanu13k.github.io/diaspora-market-map/` and add the same URL under Redirect URLs.
-4. **Authentication → Email Templates → Magic Link:** add `Your code: {{ .Token }}` to the body. Users can then type the code inside the installed app, which is more reliable than links on phones.
-5. **Account → Access Tokens:** create a personal access token for GitHub Actions.
+**Done:** Supabase project `isvunzeeanjvczcowses` (schema, security policies, and functions applied; auth Site URL and redirect set), GitHub Pages enabled, and the public Supabase URL and publishable key in `.env.production`.
 
-### 2. Stripe
-1. **Product catalog → Add product** "Diaspora Market Map Premium" with two recurring prices (e.g. $4.99/month and $39/year). Copy both `price_…` IDs.
-2. **Developers → Webhooks → Add endpoint:** `https://<PROJECT_REF>.supabase.co/functions/v1/stripe-webhook`. Events: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`. Copy the signing secret (`whsec_…`).
-3. **Settings → Billing → Customer portal:** turn it on (lets users cancel or switch plans).
-4. Use **test mode** keys first. Test card: `4242 4242 4242 4242`.
+### Remaining: GitHub repo secrets (Settings → Secrets and variables → Actions)
 
-### 3. GitHub repo secrets (Settings → Secrets and variables → Actions)
-
-| Secret | Value |
+| Secret | Where to get it |
 |---|---|
-| `VITE_SUPABASE_URL` | Supabase Project URL |
-| `VITE_SUPABASE_ANON_KEY` | anon public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | service_role key (used only by the import job) |
-| `SUPABASE_ACCESS_TOKEN` | personal access token |
-| `SUPABASE_PROJECT_REF` | project ref |
-| `SUPABASE_DB_PASSWORD` | DB password |
-| `STRIPE_SECRET_KEY` | `sk_test_…` / `sk_live_…` |
-| `STRIPE_WEBHOOK_SECRET` | `whsec_…` |
-| `STRIPE_PRICE_MONTHLY` | `price_…` |
-| `STRIPE_PRICE_YEARLY` | `price_…` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API Keys → **Secret key** (`sb_secret_…`). Used only by the weekly import. |
+| `SUPABASE_ACCESS_TOKEN` | supabase.com/dashboard/account/tokens → Generate new token. |
+| `SUPABASE_PROJECT_REF` | `isvunzeeanjvczcowses` |
+| `STRIPE_SECRET_KEY` | Stripe → Developers → API keys (`sk_test_…` first) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook endpoint `https://isvunzeeanjvczcowses.supabase.co/functions/v1/stripe-webhook` with events `checkout.session.completed` and `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted` → signing secret `whsec_…` |
+| `STRIPE_PRICE_MONTHLY` / `STRIPE_PRICE_YEARLY` | Stripe product "Premium" → its two recurring `price_…` IDs |
 
-Optional **variables** (same page, Variables tab): `PRICE_MONTHLY_LABEL` = `$4.99/mo`, `PRICE_YEARLY_LABEL` = `$39/yr`.
+Optional variables: `PRICE_MONTHLY_LABEL`, `PRICE_YEARLY_LABEL` (shown on the pricing page).
 
-### 4. Turn it on
-1. **Settings → Pages → Source: GitHub Actions.**
-2. **Actions → "Deploy Supabase" → Run workflow.** This creates the tables and security rules and deploys the payment functions.
-3. **Actions → "Deploy to GitHub Pages" → Run workflow.** The site goes live.
-4. **Actions → "Refresh listings from OpenStreetMap" → Run workflow.** This fills the map (about 30–60 min for all states) and then repeats every Monday.
-5. Sign in on the site once, then make yourself admin in Supabase **SQL Editor**:
-   ```sql
-   update profiles set is_admin = true where email = 'you@example.com';
-   ```
-   **Account → Admin console** now shows reports, new-place suggestions, and the edit/verify tool.
+Then run **Actions → "Refresh listings from OpenStreetMap"** (to fill the map) and **"Deploy Supabase payment functions"**. Sign in once and make yourself admin in the Supabase SQL Editor:
+```sql
+update profiles set is_admin = true where email = 'you@example.com';
+```
 
----
+**Database changes:** paste new files from `supabase/migrations/` into the Supabase SQL Editor and run them.
+
+**Email:** Supabase's built-in email sender is rate-limited to a few emails per hour and its templates are locked. Before launch, add a custom SMTP sender (Authentication → Emails → SMTP Settings; Resend's free tier works). Then add `{{ .Token }}` to the "Magic link or OTP" template so phone users can type a code.
 
 ## Local development
 ```bash

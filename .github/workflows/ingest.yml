@@ -21,6 +21,6 @@ jobs:
       - run: npm ci
       - run: node scripts/ingest-osm.mjs
         env:
-          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_URL: https://isvunzeeanjvczcowses.supabase.co
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           STATES: ${{ github.event.inputs.states }}

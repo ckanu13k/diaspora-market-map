@@ -54,7 +54,7 @@ function SetupNeeded() {
   return (
     <div className="card narrow" style={{ margin: '10vh auto' }}>
       <h1>Almost there</h1>
-      <p>This build has no Supabase connection yet. Add the <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> repository secrets, then re-run the <em>Deploy to GitHub Pages</em> workflow. The README walks through it step by step.</p>
+      <p>This build has no Supabase connection yet. Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in <code>.env.production</code>, then re-run the <em>Deploy to GitHub Pages</em> workflow. The README walks through it step by step.</p>
     </div>
   );
 }

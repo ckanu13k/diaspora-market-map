@@ -31,15 +31,15 @@ export function SignIn() {
   return (
     <div className="card narrow">
       <h1>Sign in</h1>
-      <p className="muted">Free accounts get 5 full place details a day: address, phone, hours and directions. There are no passwords. We email you a code.</p>
+      <p className="muted">Free accounts get 5 full place details a day: address, phone, hours and directions. There are no passwords. We email you a sign-in link.</p>
       {!sent ? (
         <form onSubmit={send} className="stack">
           <label className="field">Email<input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-          <button className="btn primary" disabled={busy}>Email me a sign-in code</button>
+          <button className="btn primary" disabled={busy}>Email me a sign-in link</button>
         </form>
       ) : (
         <form onSubmit={verify} className="stack">
-          <p>We sent a code to <strong>{email}</strong>. Enter it below, or tap the link in the email.</p>
+          <p>We emailed a sign-in link to <strong>{email}</strong>. Open it on this device. If the email shows a code instead, enter it here.</p>
           <label className="field">Code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,10}" required value={code} onChange={(e) => setCode(e.target.value)} /></label>
           <button className="btn primary" disabled={busy}>Sign in</button>
           <button type="button" className="btn ghost" onClick={() => setSent(false)}>Use a different email</button>
