@@ -14,8 +14,8 @@ export default function Suggest() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
 
-  if (!session) return <div className="card narrow"><h1>Add a place</h1><p>Sign in (free) to suggest a market or restaurant.</p><Link className="btn primary" to="/account">Sign in</Link></div>;
-  if (done) return <div className="card narrow"><h1>Thank you!</h1><p>We'll verify it and add it to the map, usually within a few days.</p><button className="btn" onClick={() => { setF(empty); setOrigins([]); setCoords(null); setDone(false); }}>Add another</button></div>;
+  if (!session) return <div className="page narrow"><h1>Add a place</h1><p>Sign in (free) to suggest a market or restaurant.</p><Link className="btn primary" to="/account">Sign in</Link></div>;
+  if (done) return <div className="page narrow"><h1>Thank you!</h1><p>We'll verify it and add it to the map, usually within a few days.</p><button className="btn" onClick={() => { setF(empty); setOrigins([]); setCoords(null); setDone(false); }}>Add another</button></div>;
 
   const set = (k: keyof typeof empty) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
 
@@ -42,13 +42,13 @@ export default function Suggest() {
   };
 
   return (
-    <form className="card narrow stack" onSubmit={submit}>
+    <form className="page narrow stack" onSubmit={submit}>
       <h1>Add a market or restaurant</h1>
-      <p className="muted">Know a spot that's missing? Tell us and we'll verify it.</p>
+      <p className="lede">Know a spot that's missing? Tell us about it and we'll check it before it goes on the map.</p>
       <label className="field">Name<input required value={f.name} onChange={set('name')} /></label>
       <div className="seg">
         {['restaurant', 'market'].map((k) => (
-          <button type="button" key={k} className={f.kind === k ? 'on' : ''} onClick={() => setF({ ...f, kind: k })}>{k === 'market' ? '🛒 Market / store' : '🍲 Restaurant / food spot'}</button>
+          <button type="button" key={k} className={f.kind === k ? 'on' : ''} onClick={() => setF({ ...f, kind: k })}>{k === 'market' ? 'Market or grocery' : 'Restaurant or food spot'}</button>
         ))}
       </div>
       <div className="field">Origin / cuisine
@@ -67,7 +67,7 @@ export default function Suggest() {
         </label>
         <label className="field">ZIP<input value={f.postcode} onChange={set('postcode')} inputMode="numeric" /></label>
       </div>
-      <button type="button" className="btn" onClick={here}>{coords ? `📍 Location set (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})` : "📍 I'm here now: use my location"}</button>
+      <button type="button" className="btn" onClick={here}>{coords ? `Location added (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})` : "I'm here now: use my location"}</button>
       <label className="field">Phone<input type="tel" value={f.phone} onChange={set('phone')} /></label>
       <label className="field">Website<input type="url" placeholder="https://" value={f.website} onChange={set('website')} /></label>
       <label className="field">Instagram<input placeholder="https://instagram.com/…" value={f.instagram} onChange={set('instagram')} /></label>

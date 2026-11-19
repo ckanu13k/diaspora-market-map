@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
-import { originLabel, prettyHours, SERVICE_LABEL, US_STATES } from '../lib/taxonomy';
+import { ORIGIN, prettyHours, SERVICE_LABEL, US_STATES } from '../lib/taxonomy';
 import type { DetailsResult, Place } from '../lib/types';
 import { Badge, StatusBadge } from './Badge';
+import { IconCheck, IconClock, IconClose, IconFlag, IconGlobe, IconHeart, IconHeartFilled, IconLock, IconPhone, IconPin, IconRoute, IconShare } from './Icons';
 import ReportDialog from './ReportDialog';
 
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null);
@@ -25,7 +26,7 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
     refreshAccount();
   };
 
-  // Premium users get details automatically; free users choose when to spend a daily view.
+  // Premium members see details straight away; free members choose when to use a daily view.
   useEffect(() => {
     setRes(null);
     if (session && premium) loadDetails();
@@ -33,18 +34,18 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
   }, [place.id, session?.user.id, premium]);
 
   const confirmOpen = async () => {
-    if (!session) return notify('Sign in to confirm places');
+    if (!session) return notify('Sign in to confirm a place is open');
     const { error } = await supabase.from('confirmations').upsert({ user_id: session.user.id, place_id: place.id, confirmed_at: new Date().toISOString() });
     if (error) return notify(error.message);
     const { data } = await supabase.from('places').select('confirm_count,last_confirmed_at,verification,status').eq('id', place.id).single();
     if (data) patchPlace(place.id, data);
-    notify('Thanks! You confirmed this place is open.');
+    notify('Confirmed. Thanks for keeping the map current.');
   };
 
   const fav = async () => {
     const err = await toggleFavorite(place.id);
     if (err === 'auth_required') notify('Sign in to save places');
-    else if (err === 'premium_required') notify('Saving places is a Premium feature');
+    else if (err === 'premium_required') notify('Saving places is part of Premium');
     else if (err) notify(err);
   };
 
@@ -53,92 +54,93 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
     try {
       if (navigator.share) await navigator.share({ title: place.name, url });
       else { await navigator.clipboard.writeText(url); notify('Link copied'); }
-    } catch { /* user cancelled */ }
+    } catch { /* share sheet dismissed */ }
   };
 
   const d = res?.details;
   const address = d && [d.street, place.city, place.state, d.postcode].filter(Boolean).join(', ');
   const remaining = account && !premium ? Math.max(0, account.quota - account.used_today) : null;
+  const where = `${place.city ? `${place.city}, ` : ''}${US_STATES[place.state] ?? place.state}`;
+  const saved = favorites.has(place.id);
 
   return (
     <article className="panel" aria-label={place.name}>
       <header className="panel-head">
         <div>
-          <p className="eyebrow">{place.kind === 'market' ? '🛒 Market' : '🍲 Restaurant'} · {place.city ? `${place.city}, ` : ''}{US_STATES[place.state] ?? place.state}</p>
           <h2>{place.name}</h2>
+          <p className="panel-where">{place.kind === 'market' ? 'Market' : 'Restaurant'} in {where}</p>
         </div>
-        <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
+        <button className="icon-btn" onClick={onClose} aria-label="Close"><IconClose width={18} height={18} /></button>
       </header>
 
-      <div className="badges">
-        <Badge place={place} />
-        <StatusBadge place={place} />
-        {place.featured && <span className="badge featured">★ Featured</span>}
+      <div className="cuisines">
+        {place.origins.map((o) => <span key={o} className="cuisine"><span aria-hidden>{ORIGIN.get(o)?.flag}</span>{ORIGIN.get(o)?.label.replace(' (general)', '') ?? o}</span>)}
       </div>
 
-      <div className="chips">{place.origins.map((o) => <span key={o} className="chip static">{originLabel(o)}</span>)}</div>
+      <div className="trust">
+        <div className="badges"><Badge place={place} /><StatusBadge place={place} />{place.featured && <span className="badge featured">Featured</span>}</div>
+        <p>
+          {place.verification === 'verified' && place.verified_at && <>Checked by our team on {fmtDate(place.verified_at)}. </>}
+          {place.confirm_count > 0 && <>{place.confirm_count} {place.confirm_count === 1 ? 'person has' : 'people have'} confirmed it's open in the last 90 days. </>}
+          {place.verification === 'listed' && place.confirm_count === 0 && <>From public business data. Been here lately? Tap "Still open" to confirm it.</>}
+        </p>
+      </div>
 
-      <p className="muted small">
-        {place.verification === 'verified' && place.verified_at && <>Verified by our team on {fmtDate(place.verified_at)}. </>}
-        {place.confirm_count > 0 && <>{place.confirm_count} {place.confirm_count === 1 ? 'person' : 'people'} confirmed open in the last 90 days (latest {fmtDate(place.last_confirmed_at)}). </>}
-        {place.verification === 'listed' && place.confirm_count === 0 && <>Listed from public business data, not yet confirmed. Been here recently? Confirm it below.</>}
-      </p>
-
-      <section className="details">
+      <section className="details" aria-live="polite">
         {!d && !loading && res?.error !== 'quota_exceeded' && (
           session ? (
-            <button className="btn primary block" onClick={loadDetails}>
-              Show address, phone, hours & directions
-              {remaining !== null && <small> · uses 1 of {remaining} free views left today</small>}
+            <button className="reveal" onClick={loadDetails}>
+              <IconLock width={18} height={18} />
+              <span>
+                <strong>Show address, phone, hours and directions</strong>
+                {remaining !== null && <small>Uses 1 of your {remaining} free views left today</small>}
+              </span>
             </button>
           ) : (
             <div className="gate">
-              <p><strong>Full details are for members.</strong> Free account: {account?.quota ?? 5} places a day. Premium: unlimited.</p>
-              <Link className="btn primary" to="/account">Sign in free</Link>
+              <p><strong>Contact details are for members.</strong> A free account shows {account?.quota ?? 5} places a day. Premium shows every place.</p>
+              <Link className="btn primary" to="/account">Create a free account</Link>
             </div>
           )
         )}
-        {loading && <p className="muted">Loading details…</p>}
+        {loading && <p className="loading">Loading details…</p>}
         {res?.error === 'quota_exceeded' && (
           <div className="gate">
-            <p><strong>You've used your {res.quota} free detail views for today.</strong> They reset at midnight UTC. Premium unlocks unlimited details and saved places.</p>
-            <Link className="btn gold" to="/pricing">Go Premium</Link>
+            <p><strong>You've used today's {res.quota} free views.</strong> They reset at midnight UTC. Premium shows every place, any time.</p>
+            <Link className="btn accent" to="/pricing">See Premium</Link>
           </div>
         )}
         {d && (
-          <dl className="facts">
-            {address && (<><dt>Address</dt><dd>{address}</dd></>)}
-            <dt>Directions</dt>
-            <dd className="row-links">
-              <a href={`https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`} target="_blank" rel="noreferrer">Google Maps</a>
+          <ul className="facts">
+            {address && <li><IconPin /><span>{address}</span></li>}
+            <li><IconRoute /><span className="links">
+              <a href={`https://www.google.com/maps/dir/?api=1&destination=${place.lat},${place.lng}`} target="_blank" rel="noreferrer">Directions in Google Maps</a>
               <a href={`https://maps.apple.com/?daddr=${place.lat},${place.lng}`} target="_blank" rel="noreferrer">Apple Maps</a>
-            </dd>
-            {d.phone && (<><dt>Phone</dt><dd><a href={`tel:${d.phone.replace(/[^\d+]/g, '')}`}>{d.phone}</a></dd></>)}
-            {d.website && (<><dt>Website</dt><dd><a href={d.website} target="_blank" rel="noreferrer">{d.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</a></dd></>)}
-            {d.opening_hours && (<><dt>Hours</dt><dd>{prettyHours(d.opening_hours).map((l) => <div key={l}>{l}</div>)}</dd></>)}
-            {(d.instagram || d.facebook) && (<><dt>Social</dt><dd className="row-links">
+            </span></li>
+            {d.phone && <li><IconPhone /><a href={`tel:${d.phone.replace(/[^\d+]/g, '')}`}>{d.phone}</a></li>}
+            {d.website && <li><IconGlobe /><a href={d.website} target="_blank" rel="noreferrer">{d.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</a></li>}
+            {d.opening_hours && <li><IconClock /><span>{prettyHours(d.opening_hours).map((l) => <span key={l} className="hours-line">{l}</span>)}</span></li>}
+            {(d.instagram || d.facebook) && <li><IconShare /><span className="links">
               {d.instagram && <a href={d.instagram} target="_blank" rel="noreferrer">Instagram</a>}
               {d.facebook && <a href={d.facebook} target="_blank" rel="noreferrer">Facebook</a>}
-            </dd></>)}
-            {d.services?.length > 0 && (<><dt>Services</dt><dd>{d.services.map((s) => SERVICE_LABEL[s] ?? s).join(' · ')}</dd></>)}
-            {d.description && (<><dt>About</dt><dd>{d.description}</dd></>)}
-            {d.verification_note && (<><dt>Verification</dt><dd>{d.verification_note}</dd></>)}
-            {!d.phone && !d.website && !d.opening_hours && !address && (<><dt>Note</dt><dd className="muted">We don't have contact details for this place yet. Know them? Use "Suggest a fix".</dd></>)}
-          </dl>
+            </span></li>}
+            {d.services?.length > 0 && <li><IconCheck /><span>{d.services.map((s) => SERVICE_LABEL[s] ?? s).join(', ')}</span></li>}
+            {d.description && <li className="about"><span>{d.description}</span></li>}
+            {d.verification_note && <li className="note"><span>Verification note: {d.verification_note}</span></li>}
+            {!d.phone && !d.website && !d.opening_hours && !address && <li className="note"><span>We don't have contact details for this place yet. If you know them, use "Suggest a fix".</span></li>}
+          </ul>
         )}
       </section>
 
-      <div className="actions">
-        <button className="btn" onClick={confirmOpen}>✓ Still open</button>
-        <button className="btn" onClick={fav} aria-pressed={favorites.has(place.id)}>{favorites.has(place.id) ? '♥ Saved' : '♡ Save'}</button>
-        <button className="btn" onClick={share}>Share</button>
-        <button className="btn ghost" onClick={() => (session ? setReporting(true) : notify('Sign in to suggest fixes'))}>Suggest a fix</button>
+      <div className="panel-actions">
+        <button className="action" onClick={confirmOpen}><IconCheck />Still open</button>
+        <button className="action" onClick={fav} aria-pressed={saved}>{saved ? <IconHeartFilled /> : <IconHeart />}{saved ? 'Saved' : 'Save'}</button>
+        <button className="action" onClick={share}><IconShare />Share</button>
+        <button className="action" onClick={() => (session ? setReporting(true) : notify('Sign in to suggest a fix'))}><IconFlag />Suggest a fix</button>
       </div>
 
-      {place.source === 'overture' && (
-        <p className="muted tiny">Source: <a href="https://overturemaps.org" target="_blank" rel="noreferrer">Overture Maps Foundation</a> · updated {fmtDate(place.updated_at)}</p>
-      )}
-      {place.source === 'community' && <p className="muted tiny">Added by the community and verified by our team.</p>}
+      {place.source === 'overture' && <p className="source">Listing from Overture Maps Foundation, updated {fmtDate(place.updated_at)}.</p>}
+      {place.source === 'community' && <p className="source">Added by the community and checked by our team.</p>}
       {reporting && <ReportDialog place={place} onClose={() => setReporting(false)} />}
     </article>
   );

@@ -29,7 +29,7 @@ export default function Admin() {
     return s;
   }, [places]);
 
-  if (!account?.is_admin) return <div className="card narrow"><h1>Admin</h1><p>This page is for the site owner only.</p><Link to="/">Back to map</Link></div>;
+  if (!account?.is_admin) return <div className="page narrow"><h1>Admin</h1><p>This page is for the site owner only.</p><Link to="/">Back to map</Link></div>;
 
   const resolve = async (id: string, status: 'resolved' | 'rejected') => {
     const { error } = await supabase.from('reports').update({ status, resolved_at: new Date().toISOString() }).eq('id', id);
@@ -41,7 +41,7 @@ export default function Admin() {
   const suggestions = reports.filter((r) => r.kind === 'new_place');
 
   return (
-    <div className="card wide">
+    <div className="page wide">
       <h1>Admin console</h1>
       <div className="stats">
         <div><b>{stats.total.toLocaleString()}</b>places</div>
@@ -58,7 +58,7 @@ export default function Admin() {
 
       {tab === 'reports' && (
         <ul className="admin-list">
-          {!fixes.length && <li className="muted">No open reports 🎉</li>}
+          {!fixes.length && <li className="muted">No open reports.</li>}
           {fixes.map((r) => {
             const p = places.find((x) => x.id === r.place_id);
             return (
@@ -109,7 +109,7 @@ function Suggestion({ report, onDone, onReject }: { report: Report; onDone: () =
       {p.description && <p>{String(p.description)}</p>}
       <div className="filter-row">
         <input placeholder="lat, lng" value={coords} onChange={(e) => setCoords(e.target.value)} />
-        <a className="btn" href={`https://www.google.com/maps/search/?api=1&query=${q}`} target="_blank" rel="noreferrer">Look up ↗</a>
+        <a className="btn" href={`https://www.google.com/maps/search/?api=1&query=${q}`} target="_blank" rel="noreferrer">Look it up</a>
       </div>
       <div className="actions">
         <button className="btn primary" onClick={approve}>Approve & verify</button>
@@ -157,7 +157,7 @@ function PlaceEditor() {
     }
     const { data } = await supabase.from('places').select('*').eq('id', sel.id).single();
     if (data) { patchPlace(sel.id, data as Place); setSel(data as Place); }
-    notify(verify ? 'Saved and verified ✔' : 'Saved');
+    notify(verify ? 'Saved and verified' : 'Saved');
   };
 
   return (
@@ -191,7 +191,7 @@ function PlaceEditor() {
           ))}
           <p className="muted tiny">Saving locks this place, so listing imports won't overwrite your edits.</p>
           <div className="actions">
-            <button className="btn primary" onClick={() => save(true)}>Save & mark verified ✔</button>
+            <button className="btn primary" onClick={() => save(true)}>Save and mark verified</button>
             <button className="btn" onClick={() => save(false)}>Save only</button>
           </div>
         </div>

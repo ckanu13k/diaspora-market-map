@@ -29,9 +29,9 @@ export function SignIn() {
   };
 
   return (
-    <div className="card narrow">
+    <div className="page narrow">
       <h1>Sign in</h1>
-      <p className="muted">Free accounts get 5 full place details a day: address, phone, hours and directions. There are no passwords. We email you a sign-in link.</p>
+      <p className="lede">A free account shows the address, phone, hours and directions for 5 places a day. There's no password: we email you a sign-in link.</p>
       {!sent ? (
         <form onSubmit={send} className="stack">
           <label className="field">Email<input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
@@ -75,11 +75,11 @@ export default function Account() {
 
   const premium = account?.plan === 'premium';
   return (
-    <div className="card narrow">
+    <div className="page narrow">
       <h1>Your account</h1>
-      <p className="muted">{session.user.email}</p>
+      <p className="lede">{session.user.email}</p>
       <div className={`plan-box ${premium ? 'premium' : ''}`}>
-        <strong>{premium ? '★ Premium' : 'Free plan'}</strong>
+        <strong>{premium ? 'Premium' : 'Free plan'}</strong>
         {premium ? (
           <p>Unlimited details and saved places.{account?.plan_expires_at && <> Renews {new Date(account.plan_expires_at).toLocaleDateString()}.</>}</p>
         ) : (
@@ -87,7 +87,7 @@ export default function Account() {
         )}
       </div>
       <div className="stack">
-        {!premium && <Link to="/pricing" className="btn gold">Upgrade to Premium</Link>}
+        {!premium && <Link to="/pricing" className="btn accent">Upgrade to Premium</Link>}
         {account?.has_billing && <button className="btn" onClick={portal} disabled={busy}>Manage billing</button>}
         {account?.is_admin && <Link to="/admin" className="btn">Admin console</Link>}
         <button className="btn ghost" onClick={() => supabase.auth.signOut()}>Sign out</button>

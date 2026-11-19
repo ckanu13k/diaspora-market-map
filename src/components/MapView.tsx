@@ -7,7 +7,7 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 setWorkerUrl(workerUrl);
 import type { Place } from '../lib/types';
 
-const STYLE = 'https://tiles.openfreemap.org/styles/liberty';
+const STYLE = 'https://tiles.openfreemap.org/styles/positron'; // quiet grey basemap so the pins carry the color
 const US_BOUNDS: LngLatBoundsLike = [[-125, 24], [-66.5, 49.5]];
 
 export interface Bounds { west: number; south: number; east: number; north: number }
@@ -62,19 +62,19 @@ export default function MapView({ places, selectedId, onSelect, onBounds, flyTo 
 
       m.addLayer({ id: 'clusters', type: 'circle', source: 'places', filter: ['has', 'point_count'],
         paint: {
-          'circle-color': ['step', ['get', 'point_count'], '#15803d', 25, '#ca8a04', 100, '#c2410c'],
-          'circle-radius': ['step', ['get', 'point_count'], 16, 25, 22, 100, 28],
-          'circle-stroke-width': 3, 'circle-stroke-color': 'rgba(255,255,255,.85)',
+          'circle-color': ['step', ['get', 'point_count'], '#5866B4', 25, '#3A4793', 150, '#26316B'],
+          'circle-radius': ['step', ['get', 'point_count'], 15, 25, 20, 150, 26],
+          'circle-stroke-width': 4, 'circle-stroke-color': 'rgba(255,255,255,.9)',
         } });
       m.addLayer({ id: 'cluster-count', type: 'symbol', source: 'places', filter: ['has', 'point_count'],
         layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 13, 'text-font': ['Noto Sans Bold'] },
         paint: { 'text-color': '#fff' } });
       m.addLayer({ id: 'points', type: 'circle', source: 'places', filter: ['!', ['has', 'point_count']],
         paint: {
-          'circle-color': ['case', ['==', ['get', 'closed'], 1], '#9ca3af', ['==', ['get', 'kind'], 'market'], '#ca8a04', '#c2410c'],
-          'circle-radius': ['case', ['boolean', ['feature-state', 'selected'], false], 11, ['==', ['get', 'featured'], 1], 9, 7],
-          'circle-stroke-width': ['case', ['>=', ['get', 'verified'], 1], 3, 2],
-          'circle-stroke-color': ['case', ['==', ['get', 'verified'], 2], '#15803d', ['==', ['get', 'verified'], 1], '#4ade80', '#ffffff'],
+          'circle-color': ['case', ['==', ['get', 'closed'], 1], '#A3A8B6', ['==', ['get', 'kind'], 'market'], '#D69A1D', '#A8294F'],
+          'circle-radius': ['case', ['boolean', ['feature-state', 'selected'], false], 10, ['==', ['get', 'featured'], 1], 8, 6.5],
+          'circle-stroke-width': ['case', ['boolean', ['feature-state', 'selected'], false], 4, ['>=', ['get', 'verified'], 1], 3, 2],
+          'circle-stroke-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#141B3D', ['==', ['get', 'verified'], 2], '#26316B', ['==', ['get', 'verified'], 1], '#7A86CC', '#ffffff'],
         } });
 
       m.on('click', 'clusters', async (e: MapLayerMouseEvent) => {

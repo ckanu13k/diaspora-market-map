@@ -1,6 +1,7 @@
 import { HashRouter, NavLink, Route, Routes } from 'react-router-dom';
 import { configured } from './lib/supabase';
 import { StoreProvider, useStore } from './lib/store';
+import { BrandMark, IconHeart, IconMap, IconPlus, IconStar, IconUser } from './components/Icons';
 import Explore from './pages/Explore';
 import Account from './pages/Account';
 import Pricing from './pages/Pricing';
@@ -14,16 +15,16 @@ function Shell() {
   return (
     <div className="shell">
       <header className="topbar">
-        <NavLink to="/" className="brand">
-          <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" width={30} height={30} />
-          <span>Diaspora<b>Market</b>Map</span>
+        <NavLink to="/" className="brand" aria-label="Diaspora Market Map, home">
+          <BrandMark />
+          <span className="wordmark">Diaspora <span>Market Map</span></span>
         </NavLink>
-        <nav className="topnav">
+        <nav className="topnav" aria-label="Main">
           <NavLink to="/" end>Map</NavLink>
           <NavLink to="/saved">Saved</NavLink>
           <NavLink to="/suggest">Add a place</NavLink>
-          {!premium && <NavLink to="/pricing" className="gold-link">Premium</NavLink>}
-          <NavLink to="/account">{account ? (premium ? '★ Account' : 'Account') : 'Sign in'}</NavLink>
+          {!premium && <NavLink to="/pricing">Premium</NavLink>}
+          <NavLink to="/account" className="nav-account">{account ? 'Account' : 'Sign in'}</NavLink>
         </nav>
       </header>
       <main className="main">
@@ -39,11 +40,11 @@ function Shell() {
         </Routes>
       </main>
       <nav className="tabbar" aria-label="Main">
-        <NavLink to="/" end><span>🗺️</span>Map</NavLink>
-        <NavLink to="/saved"><span>♡</span>Saved</NavLink>
-        <NavLink to="/suggest"><span>＋</span>Add</NavLink>
-        <NavLink to={premium ? '/account' : '/pricing'}><span>★</span>{premium ? 'Premium' : 'Upgrade'}</NavLink>
-        <NavLink to="/account"><span>👤</span>{account ? 'Me' : 'Sign in'}</NavLink>
+        <NavLink to="/" end><IconMap />Map</NavLink>
+        <NavLink to="/saved"><IconHeart />Saved</NavLink>
+        <NavLink to="/suggest"><IconPlus />Add</NavLink>
+        <NavLink to={premium ? '/account' : '/pricing'}><IconStar />Premium</NavLink>
+        <NavLink to="/account"><IconUser />{account ? 'Account' : 'Sign in'}</NavLink>
       </nav>
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
@@ -52,9 +53,9 @@ function Shell() {
 
 function SetupNeeded() {
   return (
-    <div className="card narrow" style={{ margin: '10vh auto' }}>
+    <div className="page narrow" style={{ marginTop: '10vh' }}>
       <h1>Almost there</h1>
-      <p>This build has no Supabase connection yet. Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in <code>.env.production</code>, then re-run the <em>Deploy to GitHub Pages</em> workflow. The README walks through it step by step.</p>
+      <p>This build has no database connection yet. Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in <code>.env.production</code>, then re-run the deploy workflow.</p>
     </div>
   );
 }
