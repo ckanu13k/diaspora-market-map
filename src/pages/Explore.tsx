@@ -113,7 +113,7 @@ export default function Explore() {
         <ul className="results">
           {placesError && <li className="muted">Couldn't load places: {placesError}</li>}
           {!placesLoading && !places.length && !placesError && (
-            <li className="empty">No places yet. The first OpenStreetMap import fills the map; until it runs, add places from the "Add" tab.</li>
+            <li className="empty">No places yet. The first listings import is on its way; meanwhile you can add places from the "Add" tab.</li>
           )}
           {inView.slice(0, LIST_LIMIT).map((p) => (
             <li key={p.id}>
@@ -129,7 +129,7 @@ export default function Explore() {
           ))}
           {inView.length > LIST_LIMIT && <li className="muted small center">Showing {LIST_LIMIT} of {inView.length}. Zoom in or filter to narrow.</li>}
         </ul>
-        <p className="attribution tiny muted">Listings include data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>, ODbL.</p>
+        <p className="attribution tiny muted">Listings: <a href="https://docs.overturemaps.org/attribution/" target="_blank" rel="noreferrer">Overture Maps Foundation</a> (CDLA-Permissive-2.0 / Apache-2.0) + community. Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors.</p>
       </aside>
 
       <div className="map-wrap">

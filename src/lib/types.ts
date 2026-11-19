@@ -18,7 +18,7 @@ export interface Place {
   featured: boolean;
   confirm_count: number;
   last_confirmed_at: string | null;
-  source: 'osm' | 'community' | 'owner' | 'admin';
+  source: 'osm' | 'overture' | 'community' | 'owner' | 'admin';
   osm_id: string | null;
   updated_at: string;
 }

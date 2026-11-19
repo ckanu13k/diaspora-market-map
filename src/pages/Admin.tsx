@@ -189,7 +189,7 @@ function PlaceEditor() {
                 : <input value={(d[k] as string) ?? ''} onChange={(e) => setD({ ...d, [k]: e.target.value })} />}
             </label>
           ))}
-          <p className="muted tiny">Saving locks this place, so the weekly OpenStreetMap import won't overwrite your edits.</p>
+          <p className="muted tiny">Saving locks this place, so listing imports won't overwrite your edits.</p>
           <div className="actions">
             <button className="btn primary" onClick={() => save(true)}>Save & mark verified ✔</button>
             <button className="btn" onClick={() => save(false)}>Save only</button>

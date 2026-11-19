@@ -116,4 +116,24 @@ assert.equal(one(await db.query(`select next_index from ingest_state`)).next_ind
 assert.equal((await asUser(U(2), `select * from ingest_state`)).rows.length, 0, 'non-admins cannot see import state');
 assert.equal((await asUser(U(5), `select * from ingest_state`)).rows.length, 1, 'admin sees import state');
 
+// ── Overture ingestion (generic source-keyed)
+const ov = (i, extra = {}) => ({ source_ref: `overture:o${i}`, name: `Ov Place ${i}`, kind: 'restaurant', origins: ['ethiopian'], regions: ['east_africa'],
+  city: 'Atlanta', state: 'GA', lat: 33.7, lng: -84.4, street: '1 St', postcode: '30301', phone: '555', website: null, opening_hours: null,
+  instagram: null, facebook: null, services: [], confidence: 0.9, ...extra });
+await assert.rejects(asUser(U(1), `select ingest_places('[]'::jsonb, 'overture')`), /permission denied/);
+r = one(await asService(`select ingest_places($1::jsonb, 'overture') r`, [JSON.stringify([ov(1), ov(2), ov(3)])])).r;
+assert.deepEqual(r, { inserted: 3, updated: 0 });
+r = one(await asService(`select ingest_places($1::jsonb, 'overture') r`, [JSON.stringify([ov(1, { name: 'Ov Renamed' })])])).r;
+assert.deepEqual(r, { inserted: 0, updated: 1 });
+assert.equal(one(await db.query(`select name, source from places where source_ref='overture:o1'`)).name, 'Ov Renamed');
+const o2 = one(await db.query(`select id from places where source_ref='overture:o2'`)).id;
+await asUser(U(5), `select admin_verify_place($1, 'checked')`, [o2]);
+await asService(`select ingest_places($1::jsonb, 'overture')`, [JSON.stringify([ov(2, { name: 'Should Not Apply', phone: '000' })])]);
+const lockedOv = one(await db.query(`select p.name, d.phone from places p join place_details d on d.place_id = p.id where p.id = $1`, [o2]));
+assert.deepEqual(lockedOv, { name: 'Ov Place 2', phone: '555' }, 'admin-verified Overture place is not overwritten');
+await db.query(`update places set last_seen_in_source_at = now() - interval '40 days' where source = 'overture'`);
+assert.equal(one(await asService(`select mark_missing_source('overture', now() - interval '1 day') n`)).n, 2, 'verified one is exempt');
+await asService(`select ingest_places($1::jsonb, 'overture')`, [JSON.stringify([ov(3)])]);
+assert.equal(one(await db.query(`select status from places where source_ref='overture:o3'`)).status, 'active', 'reappears → active');
+
 console.log('✓ all database tests passed');

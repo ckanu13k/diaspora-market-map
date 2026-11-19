@@ -11,18 +11,18 @@ African & Caribbean markets and restaurants across all 50 states + DC. Pins on a
 | Map | MapLibre GL + OpenFreeMap tiles (no API key) | Free |
 | Database, auth | Supabase (Postgres + Row Level Security, email-code login) | Free tier |
 | Payments | Stripe Checkout + Billing Portal via Supabase Edge Functions | 2.9% + 30¢ |
-| Listings | Weekly GitHub Action pulling OpenStreetMap (Overpass API) | Free |
+| Listings | Overture Maps places (weekly GitHub Action → `data/` → Supabase pg_cron import) | Free |
 
 ## How "verified" works
 
 | Badge | Meaning |
 |---|---|
-| **Listed** | Imported from OpenStreetMap, not yet confirmed |
+| **Listed** | Imported from Overture Maps business data, not yet confirmed |
 | **Community confirmed** | 3+ signed-in users tapped "Still open" within 90 days |
 | **Verified** | You (admin) checked it: a call, a visit, or the owner. Records the date and a note |
-| **May be closed** | 2+ users reported it closed, or it disappeared from OpenStreetMap for 2 weekly runs |
+| **May be closed** | 2+ users reported it closed, or it dropped out of the latest Overture release |
 
-The weekly import never deletes anything. Places you edit or verify are **locked**, so OSM can't overwrite your curation. A "Still open" confirmation revives a flagged place.
+Imports never delete anything. Places you edit or verify are **locked**, so imports can't overwrite your curation. A "Still open" confirmation revives a flagged place.
 
 ## Tiers
 
@@ -42,7 +42,6 @@ The paywall is enforced **in the database**. `place_details` has no public read 
 
 | Secret | Where to get it |
 |---|---|
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API Keys → **Secret key** (`sb_secret_…`). Used only by the weekly import. |
 | `SUPABASE_ACCESS_TOKEN` | supabase.com/dashboard/account/tokens → Generate new token. |
 | `SUPABASE_PROJECT_REF` | `isvunzeeanjvczcowses` |
 | `STRIPE_SECRET_KEY` | Stripe → Developers → API keys (`sk_test_…` first) |
@@ -51,7 +50,7 @@ The paywall is enforced **in the database**. `place_details` has no public read 
 
 Optional variables: `PRICE_MONTHLY_LABEL`, `PRICE_YEARLY_LABEL` (shown on the pricing page).
 
-Then run **Actions → "Refresh listings from OpenStreetMap"** (to fill the map) and **"Deploy Supabase payment functions"**. Sign in once and make yourself admin in the Supabase SQL Editor:
+Then run **"Deploy Supabase payment functions"** once the Stripe secrets are in. Sign in once and make yourself admin in the Supabase SQL Editor:
 ```sql
 update profiles set is_admin = true where email = 'you@example.com';
 ```
@@ -60,13 +59,19 @@ update profiles set is_admin = true where email = 'you@example.com';
 
 **Email:** Supabase's built-in email sender is rate-limited to a few emails per hour and its templates are locked. Before launch, add a custom SMTP sender (Authentication → Emails → SMTP Settings; Resend's free tier works). Then add `{{ .Token }}` to the "Magic link or OTP" template so phone users can type a code.
 
+## How listings stay current
+1. **`.github/workflows/overture.yml`** runs weekly with no secrets. DuckDB reads the latest [Overture Maps](https://overturemaps.org) places release from public S3, keeps US places with an African/Caribbean cuisine category or name keyword (`shared/taxonomy.json`), and commits `data/manifest.json` + `data/places/<ST>.json`. It commits only when the data changed.
+2. **`supabase/functions/ingest-places`** runs every 10 minutes via pg_cron (`supabase/cron.sql`). When the manifest names a new release, it imports state by state, then flags places that dropped out of the release as "may be closed".
+
+Overture places data is CDLA-Permissive-2.0 / Apache-2.0, with no ODbL share-alike, so charging for Premium access is fine. Attribution is shown in the app.
+
 ## Local development
 ```bash
 npm install
 cp .env.example .env.local     # fill in Supabase URL + anon key
 npm run dev                    # http://localhost:5173/diaspora-market-map/
 npm test                       # runs the real migration on in-process Postgres + ingestion tests
-npm run ingest:dry             # preview a Texas import without writing (needs open internet)
+pip install duckdb && python scripts/overture/extract.py /tmp/raw.jsonl && node scripts/overture/build.mjs /tmp/raw.jsonl
 ```
 
 ## Project map
@@ -74,13 +79,11 @@ npm run ingest:dry             # preview a Texas import without writing (needs o
 shared/taxonomy.json          countries/cuisines and name keywords (drives filters AND the import)
 supabase/migrations/          schema, RLS, paywall RPC, ingestion + admin functions
 supabase/functions/           create-checkout, customer-portal, stripe-webhook (Deno)
-scripts/ingest-osm.mjs        Overpass → Supabase, per state, flags vanished places
+scripts/overture/             extract.py (DuckDB/S3) + build.mjs (classify, split by state)
+data/                         published listings the database imports
 src/                          React app (pages/, components/, lib/)
-tests/                        db.test.mjs (PGlite), ingest.test.mjs
-.github/workflows/            Pages deploy, Supabase deploy, weekly import
+tests/                        db.test.mjs (PGlite), overture.test.mjs
+.github/workflows/            Pages deploy, Supabase payment functions, weekly Overture refresh
 ```
 
 **Coverage tuning:** Hispanic Caribbean (Cuban, Puerto Rican, Dominican) and North African cuisines are switched off by default so they don't swamp the map. Flip `enabled` in `shared/taxonomy.json` to include them.
-
-## Data licence
-Listing data partly comes from © OpenStreetMap contributors under the ODbL. Attribution is shown in the app and on every OSM-sourced place. ODbL has share-alike terms for derivative databases. Before charging at scale, confirm how they apply to your model. The defensible paid value is your verification layer and the places you add yourself.

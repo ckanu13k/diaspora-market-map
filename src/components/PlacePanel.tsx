@@ -81,7 +81,7 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
       <p className="muted small">
         {place.verification === 'verified' && place.verified_at && <>Verified by our team on {fmtDate(place.verified_at)}. </>}
         {place.confirm_count > 0 && <>{place.confirm_count} {place.confirm_count === 1 ? 'person' : 'people'} confirmed open in the last 90 days (latest {fmtDate(place.last_confirmed_at)}). </>}
-        {place.verification === 'listed' && place.confirm_count === 0 && <>Listed from OpenStreetMap, not yet confirmed. Been here recently? Confirm it below.</>}
+        {place.verification === 'listed' && place.confirm_count === 0 && <>Listed from public business data, not yet confirmed. Been here recently? Confirm it below.</>}
       </p>
 
       <section className="details">
@@ -135,9 +135,10 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
         <button className="btn ghost" onClick={() => (session ? setReporting(true) : notify('Sign in to suggest fixes'))}>Suggest a fix</button>
       </div>
 
-      {place.osm_id && (
-        <p className="muted tiny">Source: <a href={`https://www.openstreetmap.org/${place.osm_id}`} target="_blank" rel="noreferrer">OpenStreetMap</a> (ODbL) · updated {fmtDate(place.updated_at)}</p>
+      {place.source === 'overture' && (
+        <p className="muted tiny">Source: <a href="https://overturemaps.org" target="_blank" rel="noreferrer">Overture Maps Foundation</a> · updated {fmtDate(place.updated_at)}</p>
       )}
+      {place.source === 'community' && <p className="muted tiny">Added by the community and verified by our team.</p>}
       {reporting && <ReportDialog place={place} onClose={() => setReporting(false)} />}
     </article>
   );

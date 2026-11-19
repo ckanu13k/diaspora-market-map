@@ -7,9 +7,7 @@
     "build": "tsc -p . && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p .",
-    "test": "node tests/db.test.mjs && node tests/ingest.test.mjs",
-    "ingest": "node scripts/ingest-osm.mjs",
-    "ingest:dry": "DRY_RUN=1 STATES=TX node scripts/ingest-osm.mjs"
+    "test": "node tests/db.test.mjs && node tests/overture.test.mjs"
   },
   "license": "UNLICENSED",
   "dependencies": {
