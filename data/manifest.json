@@ -1,11 +1,11 @@
 {
  "source": "overture",
- "release": "2026-11-18.0+0fd3895fb6",
+ "release": "2026-11-18.0+bbdaab22e7",
  "overture_release": "2026-11-18.0",
- "total": 8101,
+ "total": 8100,
  "kinds": {
   "market": 1091,
-  "restaurant": 7010
+  "restaurant": 7009
  },
  "counts": {
   "AL": 40,
@@ -17,7 +17,7 @@
   "CT": 178,
   "DE": 51,
   "DC": 96,
-  "FL": 1199,
+  "FL": 1198,
   "GA": 566,
   "HI": 15,
   "ID": 11,
