@@ -2,7 +2,7 @@
 // Each call imports a few states within the time budget and remembers where it stopped.
 // After all 50 states + DC are done, it flags places that vanished from OSM and idles
 // until a week after the cycle started, so the map refreshes weekly without hammering Overpass.
-// Deployed with JWT verification off; a server-side throttle stops callers from forcing extra runs.
+// JWT verification stays on (the cron sends the public anon key); a server-side throttle stops callers from forcing extra runs.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 declare const createOsm: (t: unknown) => {
