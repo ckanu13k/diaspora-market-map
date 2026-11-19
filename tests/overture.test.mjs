@@ -34,4 +34,14 @@ r = toRow(rec({ name: 'Fixture Habesha', cats: ['ethiopian_restaurant'], addr: {
 assert.equal(r.state, 'DC');
 assert.equal(stateCode('US-GA'), 'GA'); assert.equal(stateCode('new york'), 'NY'); assert.equal(stateCode('ZZ'), null);
 
+// Hispanic Caribbean filtered when that region is disabled
+assert.equal(toRow(rec({ name: 'La Esquina Fixture', cats: ['caribbean_restaurant'] })), null, 'Spanish name, generic caribbean');
+assert.equal(toRow(rec({ name: 'Fixture Grill', cats: ['caribbean_restaurant', 'cuban_restaurant'] })), null, 'Hispanic alt category');
+assert.ok(toRow(rec({ name: 'Fixture Island Grill', cats: ['caribbean_restaurant'] })), 'plain generic caribbean kept');
+assert.ok(toRow(rec({ name: 'La Fixture Jamaican Kitchen', cats: ['caribbean_restaurant'] })), 'explicit keyword wins');
+// place-name keywords removed; exact market categories
+assert.equal(toRow(rec({ name: 'Jamaica Halal Food', cats: ['halal_restaurant'] })), null, 'Jamaica, Queens is not Jamaican');
+assert.equal(toRow(rec({ name: 'Caribbean Fixture Freight', cats: ['shipping_center', 'freight_and_cargo_service'] })), null, 'not food');
+assert.equal(toRow(rec({ name: 'Fixture African Market', cats: ['marketing_agency'] })), null, 'marketing is not a market');
+
 console.log('✓ all Overture mapping tests passed');

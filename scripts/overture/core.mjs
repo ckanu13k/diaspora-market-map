@@ -12,8 +12,12 @@ const STATE_NAMES = {
   utah:'UT', vermont:'VT', virginia:'VA', washington:'WA', 'west virginia':'WV', wisconsin:'WI', wyoming:'WY',
 };
 
-const MARKET_CATS = /(grocery|supermarket|convenience|market|butcher|meat_shop|seafood|deli|bakery|food_store|specialty_food|international_food|spice)/;
-const EATERY_CATS = /(restaurant|eat_and_drink|cafe|caterer|catering|food_truck|fast_food|takeout|diner|eatery|food_court)/;
+// Exact category tokens (avoid substring traps like "marketing_agency" or "freight")
+const isMarketCat = (c) => /^(.*grocery.*|supermarket|convenience_store|butcher_shop|meat_shop|seafood_market|fish_market|deli|delicatessen|bakery|.*food_store|specialty_food.*|international_food.*|ethnic_food.*|spice_shop|farmers_market|public_market|food_market|market|african_market|caribbean_market)$/.test(c);
+const isEateryCat = (c) => /(_restaurant$|^restaurant$|^eat_and_drink$|^cafe$|^coffee_shop$|^caterer$|^catering.*|^food_truck$|^fast_food.*|^takeout.*|^diner$|^eatery$|^food_court$|^bar_and_grill.*|^juice_bar$)/.test(c);
+// Hispanic Caribbean / Latin signals: Overture files many Cuban & Puerto Rican spots under caribbean_restaurant
+const HISPANIC_CAT = /^(cuban|puerto_rican|dominican|latin_american|spanish|mexican|tex_mex|colombian|venezuelan|peruvian|salvadoran|honduran|nicaraguan|guatemalan|argentine|brazilian|tapas|empanada)/;
+const HISPANIC_NAME = /\b(la|el|los|las|de|del|mi|sabor|sabores|criollo|criolla|cubano|cubana|cuban|cubans|cuba|cubanisimo|boricua|sazón|sazon|cafeteria|cafetería|rincón|rincon|bodega|bodegon|bodegón|comida|cocina|latino|latina|latin|pollo|arepa|arepas|empanada|empanadas|taco|tacos|taqueria|havana|habana|puerto|rico|dominicana?|españa|espana|meson|mesón|pikadiyo|mofongo|pupusa|pupuseria|lechonera|panaderia|panadería|frita|fritas|caribe)\b/i;
 const MARKET_NAME = /\b(market|mart|store|grocery|groceries|foods|supermarket|shop|imports?|international)\b/i;
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -54,15 +58,21 @@ export function createOverture(taxonomy) {
       const m = /^(.+)_restaurant$/.exec(c);
       if (m && (BY_KEY.has(m[1]) || ALIASES.has(m[1]))) origins.add(ALIASES.get(m[1]) ?? m[1]);
     }
-    for (const rule of KEYWORD_RULES) if (rule.re.test(name)) origins.add(rule.origin);
+    const nameOrigins = new Set();
+    for (const rule of KEYWORD_RULES) if (rule.re.test(name)) { origins.add(rule.origin); nameOrigins.add(rule.origin); }
+
+    // Generic-category-only matches ("caribbean_restaurant" with nothing else) that look Hispanic are dropped
+    // unless the Hispanic Caribbean region is enabled.
+    const genericOnly = [...origins].every((o) => o === 'caribbean' || o === 'african') && nameOrigins.size === 0;
+    if (genericOnly && !enabled.has('caribbean_hispanic') && (cats.some((c) => HISPANIC_CAT.test(c)) || HISPANIC_NAME.test(name))) return null;
     for (const o of [...origins]) if (!BY_KEY.has(o)) origins.delete(o);
     const reg = (o) => BY_KEY.get(o).region;
     if ([...origins].some((o) => reg(o) !== 'africa_general' && reg(o).endsWith('africa'))) origins.delete('african');
     if ([...origins].some((o) => o !== 'caribbean' && reg(o) === 'caribbean')) origins.delete('caribbean');
     if (!origins.size) return null;
 
-    const isMarket = MARKET_CATS.test(catStr);
-    const isEatery = EATERY_CATS.test(catStr);
+    const isMarket = cats.some(isMarketCat);
+    const isEatery = cats.some(isEateryCat);
     let kind = null;
     if (isMarket && isEatery) kind = MARKET_NAME.test(name) ? 'market' : 'restaurant';
     else if (isMarket) kind = 'market';

@@ -89,8 +89,7 @@
    "region": "west_africa",
    "keywords": [
     "Liberia",
-    "Liberian",
-    "Monrovia"
+    "Liberian"
    ]
   },
   {
@@ -240,8 +239,7 @@
    "region": "east_africa",
    "keywords": [
     "Tanzania",
-    "Tanzanian",
-    "Zanzibar"
+    "Tanzanian"
    ]
   },
   {
@@ -325,7 +323,6 @@
    "region": "caribbean",
    "keywords": [
     "Jamaican",
-    "Jamaica",
     "Jerk"
    ]
   },
@@ -347,8 +344,7 @@
    "flag": "🇹🇹",
    "region": "caribbean",
    "keywords": [
-    "Trini",
-    "Trinidad"
+    "Trini"
    ]
   },
   {
@@ -387,7 +383,6 @@
    "flag": "🇬🇩",
    "region": "caribbean",
    "keywords": [
-    "Grenada",
     "Grenadian"
    ]
   },
