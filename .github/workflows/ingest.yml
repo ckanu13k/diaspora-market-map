@@ -1,8 +1,8 @@
-name: Refresh listings from OpenStreetMap
+name: Manual OpenStreetMap import (fallback)
 
+# The scheduled weekly import runs inside Supabase (supabase/functions/ingest-osm + supabase/cron.sql).
+# This manual workflow is a fallback and needs the SUPABASE_SERVICE_ROLE_KEY secret.
 on:
-  schedule:
-    - cron: '17 9 * * 1'   # Mondays 09:17 UTC (3:17am Houston)
   workflow_dispatch:
     inputs:
       states:

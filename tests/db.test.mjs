@@ -112,4 +112,8 @@ const rep = one(await asUser(U(2), `insert into reports (kind, payload) values (
 const newId = one(await asUser(U(5), `select admin_approve_new_place($1, 29.78, -95.82) id`, [rep])).id;
 assert.equal(one(await db.query(`select state, verification, source from places where id=$1`, [newId])).state, 'TX');
 
+assert.equal(one(await db.query(`select next_index from ingest_state`)).next_index, 0);
+assert.equal((await asUser(U(2), `select * from ingest_state`)).rows.length, 0, 'non-admins cannot see import state');
+assert.equal((await asUser(U(5), `select * from ingest_state`)).rows.length, 1, 'admin sees import state');
+
 console.log('✓ all database tests passed');
