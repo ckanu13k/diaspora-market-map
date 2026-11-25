@@ -207,6 +207,12 @@ export async function checkWebsites(rows, { concurrency = 24, log = console.log 
     robotsCache.clear();
     await run(retry, 8);
   }
+  // Still no answer after the retry: nothing says the site is gone (many small hosts block datacenter
+  // traffic), so keep the link this week. Supabase drops it if it's unreachable two weeks running.
+  for (const row of todo) {
+    const res = results.get(row.source_ref);
+    if (res?.transient) results.set(row.source_ref, { ...res, website: row.website, website_status: 'unreachable', reason: `${res.website_status} ${res.reason ?? ''}`.trim() });
+  }
   for (const row of rows) {
     const res = row.website ? results.get(row.source_ref) : { website: null, website_status: 'none', website_checked_at: today(), menu_url: null, items: [], items_url: null };
     const { transient, reason, match, items_from, extract_error, ...fields } = res;

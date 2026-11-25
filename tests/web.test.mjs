@@ -15,7 +15,8 @@ assert.equal(matchBusiness(place, { html: page('Home', `${long} Visit 9810 Bisso
 assert.equal(matchBusiness(place, { html: page('Welcome', long), url: 'https://www.mamangozi.com' }), 'domain', 'domain spells the name');
 assert.equal(matchBusiness({ name: 'Jamaican Grill', phone: null }, { html: page('Welcome', long), url: 'https://x.com' }), null, 'generic words alone are not evidence');
 assert.equal(matchBusiness({ name: 'Island Spice Grill', phone: null }, { html: page('Island Spice Grill | Miami', long), url: 'https://x.com' }), 'name', 'all-common-word names match as a phrase');
-assert.equal(c(page('', '<div id="root"></div>'), { url: 'https://eatwell.net/', finalUrl: 'https://eatwell.net/' }).status, 'thin', 'JavaScript-only pages are kept but marked');
+assert.equal(c(page('', '<div id="root"></div>'), { url: 'https://eatwell.net/', finalUrl: 'https://eatwell.net/' }).status, 'unverifiable', 'empty page on an unrelated address');
+assert.equal(classifyPage({ name: 'Island Spice Grill' }, { url: 'https://islandspicegrillnyc.com/', finalUrl: 'https://islandspicegrillnyc.com/', status: 200, html: page('', '<div id="root"></div>') }).status, 'thin', 'JavaScript-only pages are kept but marked');
 
 // ── drop: obsolete
 assert.equal(c(page('mamangozi.com is for sale', 'Buy this domain. Make an offer on this domain.')).status, 'parked');
@@ -36,6 +37,7 @@ assert.equal(c(page('Lagos Lounge | Atlanta Nightlife', 'Bottle service and DJs 
 assert.equal(c('', { finalUrl: 'https://www.facebook.com/mamangozi' }).status, 'social');
 assert.equal(c('', { finalUrl: 'https://www.doordash.com/store/mama-ngozi-123' }).status, 'ordering_platform');
 assert.equal(c('', { contentType: 'application/pdf' }).pdf, true);
+assert.equal(c(page('SLOT88: Situs Slot Gacor Terpercaya', 'Daftar slot online')).status, 'hijacked', 'expired domain taken over by spammers');
 
 // ── menu links
 const nav = `<nav><a href="/">Home</a><a href="/about">About</a><a href="/our-menu/">Our Menu</a><a href="https://order.toasttab.com/online/mama">Order Online</a></nav>`;

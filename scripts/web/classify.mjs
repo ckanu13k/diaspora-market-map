@@ -32,8 +32,8 @@ export function siteOf(url) {
 const hostOf = (url) => { try { return new URL(url).hostname.toLowerCase().replace(/^www\d?\./, ''); } catch { return ''; } };
 
 // ── what kind of site is it ──────────────────────────────
-const SOCIAL = /(^|\.)(facebook\.com|fb\.com|instagram\.com|linktr\.ee|tiktok\.com|twitter\.com|x\.com)$/;
-const ORDERING = /(^|\.)(doordash\.com|ubereats\.com|grubhub\.com|seamless\.com|postmates\.com|chownow\.com|toasttab\.com|order\.online|clover\.com|menufy\.com|slicelife\.com|beyondmenu\.com|yelp\.com|ezcater\.com|square\.site|squareup\.com|order\.toasttab\.com|orderonlinemenu\.com|allmenus\.com|menupages\.com)$/;
+const SOCIAL = /(^|\.)(facebook\.com|fb\.com|instagram\.com|linktr\.ee|linkin\.bio|beacons\.ai|tiktok\.com|twitter\.com|x\.com)$/;
+const ORDERING = /(^|\.)(rezku\.com|kwickmenu\.com|froogleorders\.com|eat24hour\.com|munchem\.com|orders\.co|tableup\.com|uber\.com|toast\.site|menufy\.com|beyondmenu\.com|grubhub\.com|doordash\.com|ubereats\.com|grubhub\.com|seamless\.com|postmates\.com|chownow\.com|toasttab\.com|order\.online|clover\.com|menufy\.com|slicelife\.com|beyondmenu\.com|yelp\.com|ezcater\.com|square\.site|squareup\.com|order\.toasttab\.com|orderonlinemenu\.com|allmenus\.com|menupages\.com)$/;
 // Hosts a dead or parked domain gets bounced to
 const PARKING_HOST = /(^|\.)(sedo\.com|sedoparking\.com|bodis\.com|parkingcrew\.net|above\.com|dan\.com|afternic\.com|hugedomains\.com|godaddy\.com|domainmarket\.com|undeveloped\.com|buydomains\.com|uniregistry\.com|epik\.com|squadhelp\.com|brandbucket\.com|perfectdomain\.com|domainnamesales\.com|atom\.com|spaceship\.com|porkbun\.com|namebright\.com|parklogic\.com|smartname\.com|domainsponsor\.com|searchvity\.com)$/;
 // A redirect to one of these sites' own homepages means the business site is gone
@@ -72,6 +72,29 @@ export function nameEvidence(name) {
   const words = norm(name).split(' ').filter(Boolean);
   const distinctive = words.filter((w) => w.length >= 3 && !STOP.has(w) && !/^\d+$/.test(w));
   return { distinctive, joined: words.join('') };
+}
+
+// Expired restaurant domains bought up by gambling spammers
+const HIJACKED = /\b(slot ?gacor|situs (slot|judi|toto)|judi online|togel|rtp (live|slot)|bandar|sbobet|pragmatic play|slot88|scatter hitam|casino online|online casino|sportsbook|taruhan|deposit (dana|pulsa)|link alternatif|bóng đá|สล็อต|เว็บตรง|plinko|pg soft)\b|slot online|casino/i;
+
+/** For pages with no readable text: does the web address spell out the business name? */
+export function domainLooksLike(name, url) {
+  const host = hostOf(url);
+  if (SOCIAL.test(host) || ORDERING.test(host)) return false;
+  const stem = norm(host.replace(/\.[a-z]+$/, '').replace(/^(order|shop|menu|locations?)\./, '')).replace(/ /g, '');
+  const ev = nameEvidence(name);
+  if (ev.distinctive.some((w) => w.length >= 4 && stem.includes(w))) return true;
+  const dj = ev.distinctive.join('');
+  if (dj.length >= 5 && stem.includes(dj)) return true;
+  if (stem.length >= 5 && ev.joined.includes(stem)) return true;
+  // all-common-word names ("A and E Caribbean Cafe" → aecaribbeancafe…): a long shared run of letters
+  const a = ev.joined, b = stem;
+  let best = 0;
+  for (let i = 0; i < a.length; i++) for (let j = 0; j < b.length; j++) {
+    let k = 0; while (a[i + k] && a[i + k] === b[j + k]) k++;
+    if (k > best) best = k;
+  }
+  return best >= 10;
 }
 
 /**
@@ -130,10 +153,11 @@ export function classifyPage(place, { url, finalUrl, status, html, contentType =
   }
   if (CLOSED_TEXT.some((re) => re.test(title) || re.test(text.slice(0, 3000)))) return { keep: false, status: 'closed_notice' };
 
+  if (HIJACKED.test(title) || HIJACKED.test(text.slice(0, 2000))) return { keep: false, status: 'hijacked', reason: title.slice(0, 80) };
   const how = matchBusiness(place, { html, url: finalUrl });
   if (how) return { keep: true, status: 'ok', match: how };
-  // JavaScript-only pages ship almost no text, so there's nothing to compare yet: keep, but say so
-  if (text.length < 120) return { keep: true, status: 'thin' };
+  // JavaScript-only pages ship almost no text to compare: keep them only when the address itself is theirs
+  if (text.length < 120) return domainLooksLike(place.name, finalUrl) ? { keep: true, status: 'thin' } : { keep: false, status: 'unverifiable', reason: title.slice(0, 80) };
   return { keep: false, status: 'mismatch', reason: title.slice(0, 80) };
 }
 
