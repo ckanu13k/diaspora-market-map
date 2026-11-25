@@ -46,10 +46,16 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
           WEB_STATES: ${{ inputs.web_states }}
           WEB_REPORT_KEY: ${{ inputs.report_key }}
-      - name: Upload encrypted website report
+      - name: Save encrypted website report to the web-report branch
         if: ${{ inputs.report_key != '' }}
-        uses: actions/upload-artifact@v4
-        with: { name: web-report, path: /tmp/web-report.enc.json, retention-days: 3, if-no-files-found: ignore }
+        run: |
+          [ -f /tmp/web-report.enc.json ] || exit 0
+          cd /tmp && rm -rf rep && mkdir rep && cd rep && git init -q -b web-report
+          cp /tmp/web-report.enc.json report.enc.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add report.enc.json && git commit -qm "Encrypted website check report"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" web-report
       - name: Commit if changed
         if: ${{ !inputs.dry_run }}
         run: |

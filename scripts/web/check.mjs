@@ -72,11 +72,13 @@ async function robotsFor(origin) {
   robotsCache.set(origin, p);
   return p;
 }
-async function mayFetch(url) {
+async function mayFetch(url, why) {
   let u; try { u = new URL(url); } catch { return false; }
   const rules = await robotsFor(u.origin);
-  if (rules === 'unreachable') return false;
-  return allowed(rules, u.pathname + u.search);
+  if (rules === 'unreachable') { if (why) why.reason = 'robots_unreachable'; return false; }
+  const ok = allowed(rules, u.pathname + u.search);
+  if (!ok && why) why.reason = 'robots_disallow';
+  return ok;
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -89,9 +91,15 @@ export async function checkOne(place) {
   let url = place.website.trim();
   if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
 
-  if (!(await mayFetch(url))) {
-    // The site asks bots to stay away: we can't check it, so keep the link as listed.
-    return { ...out, website: url, website_status: 'not_checked_robots' };
+  const why = {};
+  if (!(await mayFetch(url, why))) {
+    if (why.reason === 'robots_unreachable') {
+      // robots.txt itself didn't answer: check the home page the same way to see if the site is there at all
+      const probe = await get(url, { cap: 20_000 });
+      if (!probe.ok) return { ...out, website_status: probe.kind === 'dns' ? 'dead_dns' : TRANSIENT.has(probe.kind) ? probe.kind : `error_${probe.kind}`, transient: true, reason: probe.code };
+    }
+    // The site asks bots to stay away (or won't say): we can't check it, so keep the link as listed.
+    return { ...out, website: url, website_status: 'not_checked_robots', reason: why.reason };
   }
 
   let r = await get(url);
@@ -102,7 +110,8 @@ export async function checkOne(place) {
   }
   if (!r.ok) {
     if (r.kind === 'tls_chain') return { ...out, website: url, website_status: 'not_checked_tls' };
-    return { ...out, website_status: r.kind === 'dns' ? 'dead_dns' : r.kind === 'refused' ? 'dead_refused' : r.kind === 'bad_tls' ? 'bad_certificate' : TRANSIENT.has(r.kind) ? r.kind : `error_${r.kind}`, transient: TRANSIENT.has(r.kind) };
+    // DNS failures get one retry too: a busy resolver can fail a lookup that works a minute later
+    return { ...out, website_status: r.kind === 'dns' ? 'dead_dns' : r.kind === 'refused' ? 'dead_refused' : r.kind === 'bad_tls' ? 'bad_certificate' : TRANSIENT.has(r.kind) ? r.kind : `error_${r.kind}`, transient: TRANSIENT.has(r.kind) || r.kind === 'dns', reason: r.code };
   }
   if (r.status === 429) return { ...out, website_status: 'rate_limited', transient: true };
   if (r.status >= 500) return { ...out, website_status: 'server_error', transient: true };
@@ -110,7 +119,7 @@ export async function checkOne(place) {
     // Bot protection (Cloudflare and the like): the site exists, but we can't read it
     return { ...out, website: url, website_status: 'not_checked_blocked' };
   }
-  if (r.status >= 400) return { ...out, website_status: r.status === 404 || r.status === 410 ? 'not_found' : `http_${r.status}` };
+  if (r.status >= 400) return { ...out, website_status: r.status === 404 || r.status === 410 ? 'not_found' : `http_${r.status}`, reason: `${r.headers.server ?? ''} ${r.finalUrl !== url ? `→ ${r.finalUrl}` : ''}`.trim() };
 
   const verdict = classifyPage(place, { url, finalUrl: r.finalUrl, status: r.status, html: r.body, contentType: r.contentType });
   if (!verdict.keep) return { ...out, website_status: verdict.status, reason: verdict.reason };
@@ -178,11 +187,11 @@ export async function checkOne(place) {
 export async function checkWebsites(rows, { concurrency = 24, log = console.log } = {}) {
   const todo = rows.filter((r) => r.website);
   const results = new Map();
-  const run = async (list) => {
+  const run = async (list, conc = concurrency) => {
     let i = 0;
     let done = 0;
     const t0 = Date.now();
-    await Promise.all(Array.from({ length: Math.min(concurrency, list.length) }, async () => {
+    await Promise.all(Array.from({ length: Math.min(conc, list.length) }, async () => {
       while (i < list.length) {
         const row = list[i++];
         results.set(row.source_ref, await checkOne(row));
@@ -193,9 +202,10 @@ export async function checkWebsites(rows, { concurrency = 24, log = console.log 
   await run(todo);
   const retry = todo.filter((r) => results.get(r.source_ref)?.transient);
   if (retry.length) {
-    log(`  retrying ${retry.length} sites that timed out or errored`);
+    log(`  retrying ${retry.length} sites that timed out, errored or had no DNS answer`);
     await sleep(30_000);
-    await run(retry);
+    robotsCache.clear();
+    await run(retry, 8);
   }
   for (const row of rows) {
     const res = row.website ? results.get(row.source_ref) : { website: null, website_status: 'none', website_checked_at: today(), menu_url: null, items: [], items_url: null };
