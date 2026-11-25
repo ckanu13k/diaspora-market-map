@@ -7,6 +7,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const RAW = 'https://raw.githubusercontent.com/ckanu13k/diaspora-market-map/main/data';
 const BUDGET_MS = 90_000;
+// raw.githubusercontent.com caches for ~5 minutes; a unique query string gets the current file.
+const fresh = (url: string) => fetch(`${url}?t=${Date.now()}`, { cache: 'no-store' });
 const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { 'Content-Type': 'application/json' } });
 
 // ── encryption (mirror of scripts/overture/crypto.mjs) ──
@@ -35,7 +37,7 @@ Deno.serve(async () => {
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
   const priv = await privateKey(db); // also creates the key pair on the very first run
 
-  const manifest = await fetch(`${RAW}/manifest.json`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const manifest = await fresh(`${RAW}/manifest.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   if (!manifest?.release) return json({ skipped: 'no manifest yet' });
   const states = Object.entries(manifest.counts as Record<string, number>).filter(([, n]) => n > 0).map(([s]) => s).sort();
 
@@ -58,11 +60,13 @@ Deno.serve(async () => {
   while (idx < states.length && Date.now() - t0 < BUDGET_MS) {
     const s = states[idx];
     try {
-      const file = await fetch(`${RAW}/places/${s}${manifest.encrypted ? '.enc' : ''}.json`, { cache: 'no-store' }).then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      });
-      const rows = manifest.encrypted ? await decryptJson(priv, file) : file;
+      // Encrypted files first; plain ones only for releases published before encryption
+      let res = await fresh(`${RAW}/places/${s}.enc.json`);
+      let encrypted = true;
+      if (res.status === 404) { res = await fresh(`${RAW}/places/${s}.json`); encrypted = false; }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const file = await res.json();
+      const rows = encrypted ? await decryptJson(priv, file) : file;
       for (let i = 0; i < rows.length; i += 250) {
         const { error: e } = await db.rpc('ingest_places', { rows: rows.slice(i, i + 250), src: 'overture' });
         if (e) throw new Error(e.message);
