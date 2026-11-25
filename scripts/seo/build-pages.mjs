@@ -244,7 +244,7 @@ async function main() {
     const trail = [['/', 'Home'], ['/prices/', 'Compare prices'], [null, label]];
     const rows = (cmp.rows ?? []).map((r) => ({ ...r, id: r.place_id, cityName: r.city ? titleCase(r.city) : null }));
     const body = [crumbs(trail), `<h1>${esc(label)} prices: where to ${pr.kind === 'market' ? 'buy' : 'eat'} it</h1>`,
-      `<p>${pr.places} ${where} list ${esc(label.toLowerCase())}${range ? `, from ${range}` : ''}. <a href="${productPath(pr.kind, pr.key)}">Open the price comparison</a> to see each ${pr.kind === 'market' ? 'store' : 'restaurant'}'s price, cheapest first.</p>`,
+      `<p>${pr.places} ${where} list ${esc(label.toLowerCase())}${range ? `, typically ${range}` : ''}. <a href="${productPath(pr.kind, pr.key)}">Open the price comparison</a> to see each ${pr.kind === 'market' ? 'store' : 'restaurant'}'s price, cheapest first.</p>`,
       `<ul>${rows.map((r) => `<li><a href="${placePath({ id: r.place_id, name: r.name, city: r.city, state: r.state })}/">${esc(r.name)}</a>, ${esc(r.cityName ?? '')}${r.cityName ? ', ' : ''}${r.state}: ${esc(r.item)}</li>`).join('')}</ul>`].join('');
     paths.push(page({ path: productPath(pr.kind, pr.key), title: `${label} prices near you: compare ${pr.places} ${where} | Diaspora Market Map`,
       description: `Where to ${pr.kind === 'market' ? 'buy' : 'eat'} ${label.toLowerCase()} in the US: ${pr.places} ${where}${range ? `, ${range}` : ''}. Compare prices before you go.`, body, jsonld: [breadcrumbLd(trail)] }));

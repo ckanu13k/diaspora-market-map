@@ -37,7 +37,7 @@ export default function Compare({ kind }: { kind: 'market' | 'restaurant' }) {
       {res && (
         <p className="lede">
           {res.places ? `${res.places} ${where}${state ? ` in ${US_STATES[state]}` : ''} list it` : `No ${where} list it${state ? ` in ${US_STATES[state]}` : ''} yet`}
-          {range && `, from ${range}`}. {res.premium ? 'Cheapest first, by the pound where the weight is known.' : userLoc ? 'Nearest first.' : ''}
+          {range && `, typically ${range}`}. {res.premium ? 'Cheapest first, by the pound where the weight is known.' : userLoc ? 'Nearest first.' : ''}
         </p>
       )}
       <div className="prices-filters">

@@ -33,7 +33,7 @@ export default function Prices() {
           <Link to={productPath(p.kind, p.key)} className="product-card">
             <strong>{p.label}</strong>
             <span>{p.places} {p.kind === 'market' ? (p.places === 1 ? 'store' : 'stores') : (p.places === 1 ? 'restaurant' : 'restaurants')}</span>
-            <span className="product-range">{range(p)}</span>
+            <span className="product-range">{p.min_cents == null ? range(p) : `Typically ${range(p)}`}</span>
           </Link>
         </li>
       ))}
