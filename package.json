@@ -7,7 +7,8 @@
     "build": "tsc -p . && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p .",
-    "test": "node tests/db.test.mjs && node tests/overture.test.mjs"
+    "test": "node tests/db.test.mjs && node tests/overture.test.mjs && node tests/snapshot.test.mjs",
+    "snapshot": "node scripts/snapshot.mjs"
   },
   "license": "UNLICENSED",
   "dependencies": {

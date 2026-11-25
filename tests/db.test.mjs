@@ -157,4 +157,12 @@ await asUser(U(3), `update detail_votes set vote = -1 where user_id = $1 and pla
 tally = one(await db.query(`select accurate_votes a, inaccurate_votes i from places where id = $1`, [vp]));
 assert.deepEqual(tally, { a: 0, i: 1 }, 'only votes after verification count');
 
+// ── updated_at moves only for map-visible changes (keeps snapshot deltas small)
+const before = one(await db.query(`select updated_at from places where source_ref = 'overture:o3'`)).updated_at;
+await new Promise((r) => setTimeout(r, 20));
+await asService(`select ingest_places($1::jsonb, 'overture')`, [JSON.stringify([ov(3)])]);
+assert.equal(+one(await db.query(`select updated_at from places where source_ref = 'overture:o3'`)).updated_at, +before, 'unchanged re-import keeps updated_at');
+await asService(`select ingest_places($1::jsonb, 'overture')`, [JSON.stringify([ov(3, { name: 'Ov Three Renamed' })])]);
+assert.ok(+one(await db.query(`select updated_at from places where source_ref = 'overture:o3'`)).updated_at > +before, 'rename bumps updated_at');
+
 console.log('✓ all database tests passed');

@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { configured, supabase } from './supabase';
-import { PLACE_COLUMNS, type Account, type Place } from './types';
+import type { Account, Place } from './types';
+import { loadPlaces } from './data';
 
 interface Store {
   places: Place[];
@@ -16,45 +17,27 @@ interface Store {
   toggleFavorite: (placeId: string) => Promise<string | null>;
   toast: string | null;
   notify: (msg: string) => void;
+  userLoc: LatLng | null;
+  locating: boolean;
+  requestLocation: () => Promise<LatLng | null>;
 }
 
 const Ctx = createContext<Store>(null as unknown as Store);
 export const useStore = () => useContext(Ctx);
 
-const CACHE_KEY = 'dmm.places.v2';
-const PAGE = 1000;
+// Old builds cached the whole map in localStorage (3.6 MB, near Safari's quota). Clear it once.
+try { localStorage.removeItem('dmm.places.v1'); localStorage.removeItem('dmm.places.v2'); } catch { /* private mode */ }
 
-function readCache(): Place[] | null {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    return raw ? (JSON.parse(raw).places as Place[]) : null;
-  } catch {
-    return null;
-  }
-}
-function writeCache(places: Place[]) {
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), places })); } catch { /* quota/private mode */ }
-}
-
-async function fetchAllPlaces(): Promise<Place[]> {
-  const first = await supabase.from('places').select(PLACE_COLUMNS, { count: 'exact' }).neq('status', 'removed').order('id').range(0, PAGE - 1);
-  if (first.error) throw first.error;
-  const total = first.count ?? first.data.length;
-  const rest = await Promise.all(
-    Array.from({ length: Math.max(0, Math.ceil(total / PAGE) - 1) }, (_, i) =>
-      supabase.from('places').select(PLACE_COLUMNS).neq('status', 'removed').order('id').range((i + 1) * PAGE, (i + 2) * PAGE - 1),
-    ),
-  );
-  const out = [...(first.data as unknown as Place[])];
-  for (const r of rest) {
-    if (r.error) throw r.error;
-    out.push(...(r.data as unknown as Place[]));
-  }
-  return out;
-}
+export interface LatLng { lat: number; lng: number }
+const LOC_KEY = 'dmm.loc';
+const readLoc = (): LatLng | null => {
+  try { const v = sessionStorage.getItem(LOC_KEY); return v ? JSON.parse(v) : null; } catch { return null; }
+};
 
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [places, setPlaces] = useState<Place[]>(() => readCache() ?? []);
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [userLoc, setUserLoc] = useState<LatLng | null>(readLoc);
+  const [locating, setLocating] = useState(false);
   const [placesLoading, setPlacesLoading] = useState(true);
   const [placesError, setPlacesError] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -71,9 +54,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!configured) { setPlacesLoading(false); return; }
     setPlacesLoading(true);
     try {
-      const data = await fetchAllPlaces();
+      const { places: data } = await loadPlaces();
       setPlaces(data);
-      writeCache(data);
       setPlacesError(null);
     } catch (e) {
       setPlacesError((e as Error).message);
@@ -81,6 +63,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setPlacesLoading(false);
     }
   }, []);
+
+  const requestLocation = useCallback(() => new Promise<LatLng | null>((resolve) => {
+    if (!('geolocation' in navigator)) { notify('Location isn\'t available on this device'); return resolve(null); }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setUserLoc(loc);
+        try { sessionStorage.setItem(LOC_KEY, JSON.stringify(loc)); } catch { /* ignore */ }
+        setLocating(false);
+        resolve(loc);
+      },
+      () => { setLocating(false); notify('Allow location access to see places near you'); resolve(null); },
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 300_000 },
+    );
+  }), [notify]);
 
   const patchPlace = useCallback((id: string, patch: Partial<Place>) => {
     setPlaces((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
@@ -123,8 +121,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => { refreshAccount(); }, [session?.user.id, refreshAccount]);
 
   const value = useMemo(
-    () => ({ places, placesLoading, placesError, reloadPlaces, patchPlace, session, account, refreshAccount, favorites, toggleFavorite, toast, notify }),
-    [places, placesLoading, placesError, reloadPlaces, patchPlace, session, account, refreshAccount, favorites, toggleFavorite, toast, notify],
+    () => ({ places, placesLoading, placesError, reloadPlaces, patchPlace, session, account, refreshAccount, favorites, toggleFavorite, toast, notify, userLoc, locating, requestLocation }),
+    [places, placesLoading, placesError, reloadPlaces, patchPlace, session, account, refreshAccount, favorites, toggleFavorite, toast, notify, userLoc, locating, requestLocation],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

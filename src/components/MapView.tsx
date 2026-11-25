@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { GeolocateControl, Map as MLMap, NavigationControl, setWorkerUrl, type GeoJSONSource, type LngLatBoundsLike, type MapLayerMouseEvent } from 'maplibre-gl';
+import { Map as MLMap, Marker, NavigationControl, setWorkerUrl, type GeoJSONSource, type LngLatBoundsLike, type MapLayerMouseEvent } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 // MapLibre v6 loads its worker relative to its own module URL, which bundling breaks — point it at the emitted file.
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
@@ -17,7 +17,8 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onBounds: (b: Bounds) => void;
-  flyTo: { lng: number; lat: number; zoom?: number; seq: number } | null;
+  flyTo: { lng: number; lat: number; zoom?: number; seq: number; instant?: boolean } | null;
+  userLoc?: { lat: number; lng: number } | null;
 }
 
 function toGeoJSON(places: Place[]): GeoJSON.FeatureCollection {
@@ -38,7 +39,7 @@ function toGeoJSON(places: Place[]): GeoJSON.FeatureCollection {
   };
 }
 
-export default function MapView({ places, selectedId, onSelect, onBounds, flyTo }: Props) {
+export default function MapView({ places, selectedId, onSelect, onBounds, flyTo, userLoc }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MLMap | null>(null);
   const ready = useRef(false);
@@ -50,7 +51,6 @@ export default function MapView({ places, selectedId, onSelect, onBounds, flyTo 
     const m = new MLMap({ container: el.current, style: STYLE, bounds: US_BOUNDS, fitBoundsOptions: { padding: 20 }, attributionControl: { compact: true } });
     map.current = m;
     m.addControl(new NavigationControl({ showCompass: false }), 'bottom-right');
-    m.addControl(new GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false }), 'bottom-right');
 
     const emitBounds = () => {
       const b = m.getBounds();
@@ -113,8 +113,26 @@ export default function MapView({ places, selectedId, onSelect, onBounds, flyTo 
   }, [selectedId, places]);
 
   useEffect(() => {
-    if (flyTo && map.current) map.current.flyTo({ center: [flyTo.lng, flyTo.lat], zoom: flyTo.zoom ?? 14, essential: true });
+    if (!flyTo || !map.current) return;
+    const opts = { center: [flyTo.lng, flyTo.lat] as [number, number], zoom: flyTo.zoom ?? 14 };
+    if (flyTo.instant || window.matchMedia('(prefers-reduced-motion: reduce)').matches) map.current.jumpTo(opts);
+    else map.current.flyTo({ ...opts, essential: true });
   }, [flyTo]);
+
+  // "You are here" dot
+  const youMarker = useRef<Marker | null>(null);
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    youMarker.current?.remove();
+    youMarker.current = null;
+    if (userLoc) {
+      const dot = document.createElement('div');
+      dot.className = 'you-dot';
+      dot.setAttribute('aria-label', 'Your location');
+      youMarker.current = new Marker({ element: dot }).setLngLat([userLoc.lng, userLoc.lat]).addTo(m);
+    }
+  }, [userLoc]);
 
   return <div ref={el} className="map" role="application" aria-label="Map of markets and restaurants" />;
 }

@@ -7,11 +7,12 @@ import type { DetailsResult, Place } from '../lib/types';
 import { Badge, StatusBadge } from './Badge';
 import { IconCheck, IconClock, IconClose, IconFlag, IconGlobe, IconHeart, IconHeartFilled, IconLock, IconPhone, IconPin, IconRoute, IconShare, IconThumbDown, IconThumbUp } from './Icons';
 import ReportDialog from './ReportDialog';
+import { formatMiles, miles } from '../lib/geo';
 
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null);
 
 export default function PlacePanel({ place, onClose }: { place: Place; onClose: () => void }) {
-  const { session, account, refreshAccount, favorites, toggleFavorite, notify, patchPlace } = useStore();
+  const { session, account, refreshAccount, favorites, toggleFavorite, notify, patchPlace, userLoc } = useStore();
   const [res, setRes] = useState<DetailsResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [reporting, setReporting] = useState<false | 'fix' | 'wrong'>(false);
@@ -96,7 +97,7 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
       <header className="panel-head">
         <div>
           <h2>{place.name}</h2>
-          <p className="panel-where">{place.kind === 'market' ? 'Market' : 'Restaurant'} in {where}</p>
+          <p className="panel-where">{place.kind === 'market' ? 'Market' : 'Restaurant'} in {where}{userLoc && <>, {formatMiles(miles(userLoc, place))} away</>}</p>
         </div>
         <button className="icon-btn" onClick={onClose} aria-label="Close"><IconClose width={18} height={18} /></button>
       </header>

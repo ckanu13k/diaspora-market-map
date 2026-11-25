@@ -36,7 +36,14 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,mjs,css,html,svg,png}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        navigateFallbackDenylist: [/\/data\//],
         runtimeCaching: [
+          {
+            // Map snapshot: show the cached copy instantly, refresh it in the background
+            urlPattern: /\/data\/places\.json$/,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'map-snapshot', expiration: { maxEntries: 2 } },
+          },
           {
             urlPattern: /^https:\/\/tiles\.openfreemap\.org\//,
             handler: 'CacheFirst',

@@ -31,7 +31,7 @@ export default function Admin() {
     return s;
   }, [places]);
 
-  if (!account?.is_admin) return <div className="page narrow"><h1>Admin</h1><p>This page is for the site owner only.</p><Link to="/">Back to map</Link></div>;
+  if (!account?.is_admin) return <div className="page narrow"><h1>Admin</h1><p>This page is for the site owner only.</p><Link to="/map">Back to the map</Link></div>;
 
   const resolve = async (id: string, status: 'resolved' | 'rejected') => {
     const { error } = await supabase.from('reports').update({ status, resolved_at: new Date().toISOString() }).eq('id', id);

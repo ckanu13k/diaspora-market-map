@@ -45,6 +45,7 @@ export function SignIn() {
           <button type="button" className="btn ghost" onClick={() => setSent(false)}>Use a different email</button>
         </form>
       )}
+      <p className="aside-links"><Link to="/pricing">What Premium includes</Link><Link to="/suggest">Add a place</Link></p>
     </div>
   );
 }
@@ -89,6 +90,7 @@ export default function Account() {
       <div className="stack">
         {!premium && <Link to="/pricing" className="btn accent">Upgrade to Premium</Link>}
         {account?.has_billing && <button className="btn" onClick={portal} disabled={busy}>Manage billing</button>}
+        <Link to="/suggest" className="btn">Add a place</Link>
         {account?.is_admin && <Link to="/admin" className="btn">Admin console</Link>}
         <button className="btn ghost" onClick={() => supabase.auth.signOut()}>Sign out</button>
       </div>
