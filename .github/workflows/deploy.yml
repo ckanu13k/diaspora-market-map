@@ -31,12 +31,9 @@ jobs:
       - name: Tests (database rules, ingestion mapping, snapshot format)
         run: npm test
 
-  redirect:
+  redirect-build:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Build redirect site
@@ -48,5 +45,13 @@ jobs:
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: { path: site }
+
+  redirect:
+    needs: redirect-build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v4
