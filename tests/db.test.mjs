@@ -267,6 +267,8 @@ await assert.rejects(asUser(U(2), `select admin_website_report()`), /admin only/
 // two weeks unreachable → link dropped
 await asService(`select ingest_places($1::jsonb, 'overture')`, [JSON.stringify([wsRow({ website_status: 'unreachable' })])]);
 assert.equal(one(await db.query(`select website from place_details where place_id = $1`, [wsPid])).website, 'https://ov1.example/', 'first week: kept');
+await asService(`select ingest_places($1::jsonb, 'overture')`, [JSON.stringify([wsRow({ website_status: 'unreachable' })])]);
+assert.equal(one(await db.query(`select website from place_details where place_id = $1`, [wsPid])).website, 'https://ov1.example/', 'two runs the same day are one strike');
 await asService(`select ingest_places($1::jsonb, 'overture')`, [JSON.stringify([wsRow({ website_status: 'unreachable', website_checked_at: '2026-12-09' })])]);
 wd = one(await db.query(`select website, website_status, website_dropped from place_details where place_id = $1`, [wsPid]));
 assert.deepEqual(wd, { website: null, website_status: 'unreachable_twice', website_dropped: 'https://ov1.example/' }, 'second week: dropped');
