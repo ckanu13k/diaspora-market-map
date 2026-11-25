@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // GitHub Pages serves project sites at /<repo-name>/ — the deploy workflow sets VITE_BASE.
-const base = process.env.VITE_BASE ?? '/diaspora-market-map/';
+// Cloudflare Pages serves from the domain root (CF_PAGES is set in its build); GitHub Pages from /<repo>/.
+const base = process.env.VITE_BASE ?? (process.env.CF_PAGES ? '/' : '/diaspora-market-map/');
 
 export default defineConfig({
   base,

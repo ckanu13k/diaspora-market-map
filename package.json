@@ -8,7 +8,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -p .",
     "test": "node tests/db.test.mjs && node tests/overture.test.mjs && node tests/snapshot.test.mjs",
-    "snapshot": "node scripts/snapshot.mjs"
+    "snapshot": "node scripts/snapshot.mjs",
+    "build:cloudflare": "(npm run snapshot || echo \"snapshot skipped\") && npm run build"
   },
   "license": "UNLICENSED",
   "dependencies": {

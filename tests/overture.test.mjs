@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createOverture, stateCode } from '../scripts/overture/core.mjs';
+import { decryptJson, encryptJson, generateKeyPair } from '../scripts/overture/crypto.mjs';
 
 const { toRow } = createOverture(JSON.parse(readFileSync('shared/taxonomy.json', 'utf8')));
 const rec = (o) => ({ id: 'x1', name: 'Fixture', cats: [], confidence: 0.9, websites: null, socials: null, phones: null,
@@ -46,5 +47,12 @@ assert.equal(toRow(rec({ name: 'Fixture African Market', cats: ['marketing_agenc
 
 assert.equal(toRow(rec({ name: '[inactive] Fixture Kitchen', cats: ['nigerian_restaurant'] })), null, 'inactive prefix');
 assert.deepEqual(toRow(rec({ name: 'Fixture Blue Nile', cats: ['ethiopian_restaurant', 'east_african_restaurant'] })).origins, ['ethiopian'], 'specific beats regional');
+
+// encrypted listings files: round trip, and no plaintext in the published envelope
+const { publicJwk, privateJwk } = await generateKeyPair();
+const sample = [{ source_ref: 'overture:x', name: 'Fixture Kitchen', phone: '+17135550100' }];
+const env = await encryptJson(publicJwk, sample);
+assert.ok(!JSON.stringify(env).includes('7135550100'), 'no plaintext phone');
+assert.deepEqual(await decryptJson(privateJwk, env), sample);
 
 console.log('✓ all Overture mapping tests passed');
