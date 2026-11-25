@@ -21,7 +21,9 @@ export default function Landing() {
     if (city) q.set('city', city.key);
     if (origin) q.set('origin', `origin:${origin.key}`);
     const food = origin ? origin.label.replace(' (general)', '') : 'African and Caribbean';
-    const where = city ? `${city.city}, ${city.state}` : st ? st[1] : 'the US';
+    // Before the listings load, name the city from its address (houston → Houston)
+    const cityGuess = !city && st && citySlug ? citySlug.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ') : null;
+    const where = city ? `${city.city}, ${city.state}` : cityGuess ? `${cityGuess}, ${st![0]}` : st ? st[1] : 'the US';
     return { preset: `?${q}`, heading: `${food} markets and restaurants in ${where}` };
   }, [stateSlug, citySlug, cuisineSlug, places]);
 
