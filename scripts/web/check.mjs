@@ -137,7 +137,7 @@ export async function checkOne(place) {
       await sleep(800);
       const j = await get(`${origin}/products.json?limit=250`, { cap: MAX_JSON, accept: 'application/json' });
       if (j.ok && j.status === 200 && /json/i.test(j.contentType)) {
-        const items = shopifyItems(JSON.parse(j.body));
+        const items = shopifyItems(JSON.parse(j.body), place.kind);
         if (items.length) return { ...res, items, items_url: base, menu_url: base, items_from: 'shopify' };
       }
     }
@@ -152,10 +152,10 @@ export async function checkOne(place) {
         all.push(...list);
         if (list.length < 100) break;
       }
-      const items = wooItems(all);
+      const items = wooItems(all, place.kind);
       if (items.length) return { ...res, items, items_url: base, menu_url: base, items_from: 'woocommerce' };
     }
-    let ld = jsonLdMenu(r.body);
+    let ld = jsonLdMenu(r.body, place.kind);
     let ldUrl = base;
     const menuLink = findMenuLink(r.body, base, place.kind);
     const follow = ld.menuUrl ?? (menuLink && siteOf(menuLink) === siteOf(base) && !/\.pdf(\?|$)/i.test(menuLink) ? menuLink : null);
@@ -164,7 +164,7 @@ export async function checkOne(place) {
       const m = await get(follow);
       if (m.ok && m.status === 200) {
         if (/pdf/i.test(m.contentType)) return { ...res, menu_url: m.finalUrl };
-        ld = jsonLdMenu(m.body);
+        ld = jsonLdMenu(m.body, place.kind);
         ldUrl = m.finalUrl;
         if (!ld.items.length) return { ...res, menu_url: m.finalUrl };
       }
@@ -205,7 +205,7 @@ export async function checkWebsites(rows, { concurrency = 24, log = console.log,
     log(`  retrying ${retry.length} sites that timed out, errored or had no DNS answer`);
     await sleep(retryDelay);
     robotsCache.clear();
-    await run(retry, 8);
+    await run(retry, 16);
   }
   // Still no answer after the retry: nothing says the site is gone (many small hosts block datacenter
   // traffic), so keep the link this week. Supabase drops it if it's unreachable two weeks running.

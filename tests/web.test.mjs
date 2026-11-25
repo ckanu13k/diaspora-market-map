@@ -77,6 +77,12 @@ assert.deepEqual(wooItems([{ name: 'Ogbono &#8211; 1lb', prices: { price: '1199'
   { name: 'Euro thing', prices: { price: '500', currency_code: 'EUR', currency_minor_unit: 2 } }]),
   [{ name: 'Ogbono – 1lb', section: 'Soup ingredients', price_cents: 1199, price_unit: null, available: true }]);
 
+assert.deepEqual(wooItems([
+  { name: 'GK Beach Towel', prices: { price: '3500' } }, { name: 'Variable Placeholder Product 1', prices: { price: '11000' } },
+  { name: 'Test', prices: { price: '1' } }, { name: 'Open Mic Night - Friday', prices: { price: '1500' } },
+  { name: 'Beef patty', prices: { price: '0' } }], 'restaurant').map((x) => [x.name, x.price_cents]), [['Beef patty', null]], 'merch, placeholders, events dropped; $0 means no price');
+assert.equal(wooItems([{ name: 'Black soap', prices: { price: '500' } }, { name: 'Coffee mug', prices: { price: '500' } }], 'market').length, 2, 'markets keep household goods');
+
 // ── robots.txt
 const rules = parseRobots(`User-agent: Googlebot\nDisallow: /\n\nUser-agent: *\nDisallow: /admin\nDisallow: /*.json$\nAllow: /products.json\n`);
 assert.equal(allowed(rules, '/'), true);

@@ -188,22 +188,26 @@ export function findMenuLink(html, baseUrl, kind) {
 }
 
 // ── items ────────────────────────────────────────────────
-const SKIP_ITEM = /gift ?card|shipping|delivery fee|donation|\btip\b|test product|sample product|e-?gift|membership|subscription|catering deposit/i;
+const SKIP_ITEM = /gift ?card|shipping|delivery fee|donation|\btip\b|test product|sample product|placeholder product|^test\b|^product \d+$|e-?gift|membership|subscription|catering deposit|\bticket|open mic|\bpresents:|admission|\brsvp\b|reservation fee|booking fee|lorem ipsum/i;
+// Restaurants' online shops often sell merch; that isn't the menu
+const MERCH = /t-?shirt|\btee\b|hoodie|sweatshirt|\bmugs?\b|tumbler|beach towel|phone case|iphone|tote bag|\bcaps?\b|\bhats?\b|beanie|apparel|sticker|keychain|key chain|magnet|poster|\bsocks?\b|jersey|bandana|candle|gift box|gift set|cookbook|e-?book|\bbooks?\b|\balbum\b|\bvinyl\b|\bcd\b/i;
 const toCents = (v) => {
   if (v == null || v === '') return null;
   const n = typeof v === 'number' ? v : parseFloat(String(v).replace(/[$,\s]/g, ''));
   return Number.isFinite(n) && n >= 0 && n <= 1000 ? Math.round(n * 100) : null;
 };
-export function cleanItems(items, cap = 300) {
+export function cleanItems(items, cap = 300, kind = null) {
   const seen = new Set();
   const out = [];
   for (const it of items) {
     const name = clip(decode(it.name ?? '').replace(/\s+/g, ' ').trim(), 80);
     if (!name || SKIP_ITEM.test(name)) continue;
+    if (kind === 'restaurant' && (MERCH.test(name) || MERCH.test(it.section ?? ''))) continue;
     const key = name.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ name, section: clip(decode(it.section ?? '').replace(/\s+/g, ' ').trim(), 40), price_cents: it.price_cents ?? null, price_unit: it.price_unit ?? null, available: it.available !== false });
+    out.push({ name, section: clip(decode(it.section ?? '').replace(/\s+/g, ' ').trim(), 40), price_cents: it.price_cents ? it.price_cents : null, // $0 means "not set"
+ price_unit: it.price_unit ?? null, available: it.available !== false });
     if (out.length >= cap) break;
   }
   return out;
@@ -228,7 +232,7 @@ function offerPrice(offers) {
 }
 
 /** schema.org Menu / MenuSection / MenuItem, or a list of Products. Also returns a hasMenu URL to follow. */
-export function jsonLdMenu(html) {
+export function jsonLdMenu(html, kind = null) {
   const items = [];
   const products = [];
   let menuUrl = null;
@@ -257,7 +261,7 @@ export function jsonLdMenu(html) {
   };
   jsonLdBlocks(html).forEach(visit);
   const list = items.length ? items : products.length >= 3 ? products : [];
-  return { items: cleanItems(list), menuUrl };
+  return { items: cleanItems(list, 300, kind), menuUrl };
 }
 
 export const isShopify = (html, headers = {}) =>
@@ -265,7 +269,7 @@ export const isShopify = (html, headers = {}) =>
 export const isWoo = (html) => /woocommerce|wc-block|\/wp-content\/plugins\/woocommerce/i.test(html);
 
 const UNIT_RE = /^(\d+(\.\d+)?)\s*(lb|lbs|pound|pounds|oz|kg|g|gram|grams|l|liter|litre|ml|pack|pk|ct|count)s?$/i;
-export function shopifyItems(json) {
+export function shopifyItems(json, kind = null) {
   const list = [];
   for (const p of arr(json?.products)) {
     const variants = arr(p.variants);
@@ -275,10 +279,10 @@ export function shopifyItems(json) {
     const name = vt && vt !== 'Default Title' && vt.length <= 20 && !UNIT_RE.test(vt) ? `${p.title} (${vt})` : p.title;
     list.push({ name, section: p.product_type ?? '', price_cents: toCents(v.price), price_unit: UNIT_RE.test(vt) ? vt.toLowerCase() : null, available: variants.some((x) => x.available) });
   }
-  return cleanItems(list);
+  return cleanItems(list, 300, kind);
 }
 
-export function wooItems(products) {
+export function wooItems(products, kind = null) {
   const list = [];
   for (const p of arr(products)) {
     const minor = Number(p?.prices?.currency_minor_unit ?? 2);
@@ -287,5 +291,5 @@ export function wooItems(products) {
     const cents = raw == null || raw === '' ? null : Math.round((Number(raw) * 100) / 10 ** minor);
     list.push({ name: p?.name, section: p?.categories?.[0]?.name ?? '', price_cents: Number.isFinite(cents) && cents <= 100000 ? cents : null, available: p?.is_in_stock !== false });
   }
-  return cleanItems(list);
+  return cleanItems(list, 300, kind);
 }
