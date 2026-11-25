@@ -171,13 +171,16 @@ export default function PlaceItems({ place, items, website, menuUrl = null, sour
                   <div className="item-main">
                     <span className="item-name">{it.name}</span>
                     {it.description && <span className="item-desc">{it.description}</span>}
-                    <span className={`item-meta ${stale ? 'stale' : ''}`}>
-                      {!it.available && <span className="item-out">{outLabel}. </span>}
-                      {it.source === 'website'
-                        ? `From their website, checked ${ago(it.last_confirmed_at)}`
-                        : stale ? `Not checked since ${ago(it.last_confirmed_at)}` : `Checked ${ago(it.last_confirmed_at)}`}
-                      {it.changed_count > 0 && `, ${it.changed_count} ${it.changed_count === 1 ? 'person says' : 'people say'} it changed`}
-                    </span>
+                    {/* Website items: the section header already says where they came from */}
+                    {(it.source !== 'website' || !it.available || it.changed_count > 0 || stale) && (
+                      <span className={`item-meta ${stale ? 'stale' : ''}`}>
+                        {!it.available && <span className="item-out">{outLabel}. </span>}
+                        {it.source === 'website'
+                          ? (stale ? `Their website hasn't listed it since ${ago(it.last_confirmed_at)}` : '')
+                          : stale ? `Not checked since ${ago(it.last_confirmed_at)}` : `Checked ${ago(it.last_confirmed_at)}`}
+                        {it.changed_count > 0 && `${it.source === 'website' && !stale ? '' : ', '}${it.changed_count} ${it.changed_count === 1 ? 'person says' : 'people say'} it changed`}
+                      </span>
+                    )}
                   </div>
                   <div className="item-side">
                     {price ? <span className="item-price">{price}</span> : <span className="item-noprice">No price yet</span>}

@@ -10,7 +10,8 @@ import ReportDialog from './ReportDialog';
 import PlaceItems from './PlaceItems';
 import { formatMiles, miles } from '../lib/geo';
 
-const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null);
+// Date-only values (2026-11-25) are calendar days, not UTC midnight: read them as local noon
+const fmtDate = (s: string | null) => (s ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s}T12:00:00` : s).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null);
 
 export default function PlacePanel({ place, onClose }: { place: Place; onClose: () => void }) {
   const { session, account, refreshAccount, favorites, toggleFavorite, notify, patchPlace, userLoc } = useStore();

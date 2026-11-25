@@ -1,7 +1,7 @@
 // End-to-end check of scripts/web/check.mjs against local fake websites (no internet needed).
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { checkOne } from '../scripts/web/check.mjs';
+import { checkOne, checkWebsites } from '../scripts/web/check.mjs';
 
 const routes = {
   '/robots.txt': [200, 'text/plain', 'User-agent: *\nDisallow: /private\n'],
@@ -53,6 +53,12 @@ assert.equal(r.website, url(4), 'kept, not fetched');
 
 r = await checkOne({ name: 'Gone', kind: 'restaurant', website: 'http://127.0.0.1:1/' });
 assert.equal(r.website, null);
+
+// after the retry pass: missing domains are dropped, slow ones kept for a week
+const rows = [{ source_ref: 'a', name: 'Gone', website: 'http://no-such-host.invalid/' }];
+await checkWebsites(rows, { log: () => {}, retryDelay: 0 });
+assert.equal(rows[0].website, null);
+assert.equal(rows[0].website_status, 'dead_dns');
 
 servers.forEach((s) => s.close());
 console.log('✓ website check network tests passed');

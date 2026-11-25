@@ -184,7 +184,7 @@ export async function checkOne(place) {
 }
 
 /** Check many places with bounded concurrency; one retry pass for temporary failures. */
-export async function checkWebsites(rows, { concurrency = 24, log = console.log } = {}) {
+export async function checkWebsites(rows, { concurrency = 24, log = console.log, retryDelay = 30_000 } = {}) {
   const todo = rows.filter((r) => r.website);
   const results = new Map();
   const run = async (list, conc = concurrency) => {
@@ -203,7 +203,7 @@ export async function checkWebsites(rows, { concurrency = 24, log = console.log 
   const retry = todo.filter((r) => results.get(r.source_ref)?.transient);
   if (retry.length) {
     log(`  retrying ${retry.length} sites that timed out, errored or had no DNS answer`);
-    await sleep(30_000);
+    await sleep(retryDelay);
     robotsCache.clear();
     await run(retry, 8);
   }
@@ -211,7 +211,8 @@ export async function checkWebsites(rows, { concurrency = 24, log = console.log 
   // traffic), so keep the link this week. Supabase drops it if it's unreachable two weeks running.
   for (const row of todo) {
     const res = results.get(row.source_ref);
-    if (res?.transient) results.set(row.source_ref, { ...res, website: row.website, website_status: 'unreachable', reason: `${res.website_status} ${res.reason ?? ''}`.trim() });
+    // (a domain that still doesn't exist after the retry is gone, not just slow)
+    if (res?.transient && res.website_status !== 'dead_dns') results.set(row.source_ref, { ...res, website: row.website, website_status: 'unreachable', reason: `${res.website_status} ${res.reason ?? ''}`.trim() });
   }
   for (const row of rows) {
     const res = row.website ? results.get(row.source_ref) : { website: null, website_status: 'none', website_checked_at: today(), menu_url: null, items: [], items_url: null };
