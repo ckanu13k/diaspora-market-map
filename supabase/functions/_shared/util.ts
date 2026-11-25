@@ -26,5 +26,5 @@ export async function getUser(req: Request) {
   return data.user ?? null;
 }
 
-/** Public app URL, e.g. https://ckanu13k.github.io/diaspora-market-map/ (trailing slash). */
+/** Public app URL, e.g. https://diaspora-market-map.pages.dev/ (trailing slash). */
 export const APP_URL = (Deno.env.get('APP_URL') ?? '').replace(/\/?$/, '/');

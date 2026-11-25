@@ -1,10 +1,14 @@
-name: Deploy to GitHub Pages
+name: Tests + old-address redirect
+
+# The app itself is built and hosted by Cloudflare Pages (diaspora-market-map.pages.dev),
+# which rebuilds on every push to main and refreshes the map data at the edge.
+# This workflow runs the test suite and keeps the old GitHub Pages address
+# forwarding visitors (and installed home-screen apps) to the new one.
 
 on:
   push:
     branches: [main]
-  schedule:
-    - cron: '7 * * * *'   # hourly: refresh the cached map snapshot so the CDN copy stays current
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -17,34 +21,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - name: Tests (database rules + ingestion mapping)
+      - name: Tests (database rules, ingestion mapping, snapshot format)
         run: npm test
-      - name: Snapshot the public map layer (served from the CDN)
-        run: npm run snapshot
-        continue-on-error: true   # the app falls back to loading from the database directly
-      - name: Build
-        run: npm run build
-        env:
-          VITE_BASE: /${{ github.event.repository.name }}/
-          VITE_PRICE_MONTHLY_LABEL: ${{ vars.PRICE_MONTHLY_LABEL }}
-          VITE_PRICE_YEARLY_LABEL: ${{ vars.PRICE_YEARLY_LABEL }}
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with: { path: dist }
 
-  deploy:
-    needs: build
+  redirect:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/checkout@v4
+      - name: Build redirect site
+        run: |
+          mkdir -p site
+          cp redirect/index.html site/index.html
+          cp redirect/index.html site/404.html
+          cp redirect/sw.js site/sw.js
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site }
       - id: deployment
         uses: actions/deploy-pages@v4

@@ -2,12 +2,12 @@
 
 African & Caribbean markets and restaurants across all 50 states + DC. Pins on a map, verified details, community confirmations, and a paid Premium tier.
 
-**Live:** `https://ckanu13k.github.io/diaspora-market-map/` · installs on phones from the browser ("Add to Home Screen").
+**Live:** `https://diaspora-market-map.pages.dev/` · installs on phones from the browser ("Add to Home Screen").
 
 | Layer | Choice | Cost |
 |---|---|---|
 | Web + mobile | React + Vite, installable PWA | Free |
-| Hosting / URL | GitHub Pages via GitHub Actions | Free |
+| Hosting / URL | Cloudflare Pages (builds from GitHub on every push; edge-cached map data) | Free |
 | Map | MapLibre GL + OpenFreeMap tiles (no API key) | Free |
 | Database, auth | Supabase (Postgres + Row Level Security, email-code login) | Free tier |
 | Payments | Stripe Checkout + Billing Portal via Supabase Edge Functions | 2.9% + 30¢ |
@@ -36,7 +36,7 @@ The paywall is enforced **in the database**. `place_details` has no public read 
 
 ## Setup status
 
-**Done:** Supabase project `isvunzeeanjvczcowses` (schema, security policies, and functions applied; auth Site URL and redirect set), GitHub Pages enabled, and the public Supabase URL and publishable key in `.env.production`.
+**Done:** Supabase project `isvunzeeanjvczcowses` (schema, security policies, and functions applied; auth Site URL and redirect set), hosting on Cloudflare Pages (the old GitHub Pages address redirects there), and the public Supabase URL and publishable key in `.env.production`.
 
 ### Remaining: GitHub repo secrets (Settings → Secrets and variables → Actions)
 
