@@ -3,11 +3,13 @@
 import { supabase } from './supabase';
 import { PLACE_COLUMNS, type Place } from './types';
 // @ts-expect-error plain JS module shared with the Node snapshot script
-import { decodeRow } from './snapshot-format.js';
+import { decodeRow, FILE, FORMAT } from './snapshot-format.js';
+import { ORIGIN } from './taxonomy';
 
 const PAGE = 1000;
 
-interface Snapshot { v: number; generated_at: string; watermark: string; cols: string[]; rows: unknown[][] }
+interface Snapshot { v: number; generated_at: string; watermark: string; rows: unknown[][] }
+const regionOf = (o: string) => ORIGIN.get(o)?.region;
 
 async function pageAll(build: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>) {
   const out: Place[] = [];
@@ -25,15 +27,16 @@ const fullLoad = () =>
 export async function loadPlaces(): Promise<{ places: Place[]; via: 'snapshot' | 'database'; changed: number }> {
   let snap: Snapshot | null = null;
   try {
-    const res = await fetch(`${import.meta.env.BASE_URL}data/places.json`);
+    const res = await fetch(`${import.meta.env.BASE_URL}data/${FILE}`);
     if (res.ok) snap = await res.json();
+    if (snap?.v !== FORMAT) snap = null;
   } catch { /* offline or missing: fall through */ }
 
   if (!snap?.rows?.length) return { places: await fullLoad(), via: 'database', changed: 0 };
 
   const byId = new Map<string, Place>();
   for (const r of snap.rows) {
-    const p = decodeRow(r) as unknown as Place;
+    const p = decodeRow(r, regionOf) as unknown as Place;
     byId.set(p.id, p);
   }
 

@@ -40,7 +40,7 @@ export default defineConfig({
         runtimeCaching: [
           {
             // Map snapshot: show the cached copy instantly, refresh it in the background
-            urlPattern: /\/data\/places\.json$/,
+            urlPattern: /\/data\/places\.v\d+\.json$/,
             handler: 'StaleWhileRevalidate',
             options: { cacheName: 'map-snapshot', expiration: { maxEntries: 2 } },
           },
