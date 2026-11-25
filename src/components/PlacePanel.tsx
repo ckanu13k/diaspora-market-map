@@ -7,6 +7,7 @@ import type { DetailsResult, Place } from '../lib/types';
 import { Badge, StatusBadge } from './Badge';
 import { IconCheck, IconClock, IconClose, IconFlag, IconGlobe, IconHeart, IconHeartFilled, IconLock, IconPhone, IconPin, IconRoute, IconShare, IconThumbDown, IconThumbUp } from './Icons';
 import ReportDialog from './ReportDialog';
+import PlaceItems from './PlaceItems';
 import { formatMiles, miles } from '../lib/geo';
 
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null);
@@ -126,13 +127,13 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
             <button className="reveal" onClick={loadDetails}>
               <IconLock width={18} height={18} />
               <span>
-                <strong>Show address, phone, hours and directions</strong>
+                <strong>Show address, phone, hours, {place.kind === 'market' ? 'products' : 'menu'} and directions</strong>
                 {remaining !== null && <small>Uses 1 of your {remaining} free views left today</small>}
               </span>
             </button>
           ) : (
             <div className="gate">
-              <p><strong>Contact details are for members.</strong> A free account shows {account?.quota ?? 5} places a day. Premium shows every place.</p>
+              <p><strong>Contact details, {place.kind === 'market' ? 'product lists' : 'menus'} and prices are for members.</strong> A free account shows {account?.quota ?? 5} places a day. Premium shows every place.</p>
               <Link className="btn primary" to="/account">Create a free account</Link>
             </div>
           )
@@ -178,6 +179,11 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
           </div>
         )}
       </section>
+
+      {d && (
+        <PlaceItems place={place} items={res?.items ?? []} website={d.website}
+          onItems={(items) => setRes((r) => (r ? { ...r, items } : r))} />
+      )}
 
       <div className="panel-actions">
         <button className="action" onClick={confirmOpen}><IconCheck />Still open</button>

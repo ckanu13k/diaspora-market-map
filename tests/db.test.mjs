@@ -165,4 +165,65 @@ assert.equal(+one(await db.query(`select updated_at from places where source_ref
 await asService(`select ingest_places($1::jsonb, 'overture')`, [JSON.stringify([ov(3, { name: 'Ov Three Renamed' })])]);
 assert.ok(+one(await db.query(`select updated_at from places where source_ref = 'overture:o3'`)).updated_at > +before, 'rename bumps updated_at');
 
+// ── menus / product lists
+const ip = ids[2];
+const upsert = (uid, args) => asUser(uid, `select upsert_place_item($1, $2, $3, $4, $5, $6, $7, $8) r`,
+  [ip, args.name, args.section ?? '', args.description ?? null, args.price ?? null, args.unit ?? null, args.available ?? true, args.id ?? null]).then((x) => one(x).r);
+assert.equal(one(await asUser(null, `select upsert_place_item($1, 'Egusi') r`, [ip]).catch(() => ({ rows: [{ r: { error: 'denied' } }] }))).r.error !== undefined, true, 'anon cannot add items');
+let it = await upsert(U(2), { name: '  Egusi   seeds ', section: 'Soup ingredients', price: 899, unit: 'LB' });
+assert.equal(it.item.name, 'Egusi seeds', 'name is tidied');
+assert.equal(it.item.price_unit, 'lb');
+assert.equal(it.item.created_by, undefined, 'contributor id is not returned');
+const egusi = it.item.id;
+it = await upsert(U(3), { name: 'egusi seeds', unit: 'lb', price: 949, section: 'Soup ingredients' });
+assert.equal(it.item.id, egusi, 'same name + unit updates instead of duplicating');
+assert.equal(it.item.price_cents, 949);
+await upsert(U(2), { name: 'Garri (yellow)', section: 'Grains & flours', price: 1299, unit: 'bag' });
+assert.equal(one(await db.query(`select item_count c from places where id = $1`, [ip])).c, 2, 'place item_count kept');
+assert.equal(one(await db.query(`select count(*)::int c from place_item_edits where place_id = $1`, [ip])).c, 3, 'every change is logged');
+assert.equal((await asUser(U(2), `select * from place_items`).catch(() => ({ rows: [] }))).rows.length, 0, 'items not directly readable');
+await assert.rejects(asUser(U(2), `insert into place_items (place_id, name) values ($1, 'x')`, [ip]), /permission denied|row-level security/);
+await assert.rejects(asUser(U(2), `select refresh_place_item_summary($1)`, [ip]), /permission denied/);
+assert.equal((await upsert(U(2), { name: '' })).error, 'bad_name');
+assert.equal((await upsert(U(2), { name: 'x'.repeat(81) })).error, 'bad_name');
+
+// items come with details (and use the same daily view)
+let det = one(await asUser(U(1), `select get_place_details($1) r`, [ip])).r;
+assert.equal(det.items.length, 2);
+assert.deepEqual(det.items.map((x) => x.section), ['Grains & flours', 'Soup ingredients'], 'grouped by section');
+assert.ok(det.items.every((x) => !('created_by' in x)), 'no contributor ids in details');
+// public search: names only
+let found = one(await asUser(null, `select search_items('EGUSI') r`)).r;
+assert.deepEqual(found, [{ place_id: ip, items: ['egusi seeds'] }], 'latest edit wins the spelling');
+assert.equal(one(await asUser(null, `select search_items('%') r`)).r.length, 0, 'wildcards are literal');
+assert.equal(one(await asUser(null, `select search_items('e') r`)).r.length, 0, 'needs 2+ characters');
+assert.equal(one(await asUser(null, `select search_items('egusi', 'ny') r`)).r.length, 0, 'state filter');
+
+// votes: still right / changed; an edit resets them; 3+ "changed" outvoting hides the item
+await asUser(U(1), `insert into place_item_votes (item_id, vote) values ($1, 1)`, [egusi]);
+for (const u of [2, 3, 4]) await asUser(U(u), `insert into place_item_votes (item_id, vote) values ($1, -1)`, [egusi]);
+let row = one(await db.query(`select confirm_count c, changed_count x, hidden h, hidden_reason hr from place_items where id = $1`, [egusi]));
+assert.deepEqual(row, { c: 1, x: 3, h: true, hr: 'votes' });
+assert.equal(one(await db.query(`select item_count c from places where id = $1`, [ip])).c, 1, 'hidden items drop out of the count');
+assert.equal(one(await asUser(null, `select search_items('egusi') r`)).r.length, 0, 'hidden items are not searchable');
+it = await upsert(U(4), { id: egusi, name: 'Egusi seeds', unit: 'lb', price: 1099, section: 'Soup ingredients' });
+row = one(await db.query(`select confirm_count c, changed_count x, hidden h from place_items where id = $1`, [egusi]));
+assert.deepEqual(row, { c: 0, x: 0, h: false }, 'an update restores the item and starts the votes fresh');
+await assert.rejects(asUser(U(1), `insert into place_item_votes (item_id, user_id, vote) values ($1, $2, 1)`, [egusi, U(2)]), /row-level security/);
+
+// removal: own item within a day, or admin
+const garri = det.items.find((x) => x.name.startsWith('Garri')).id;
+assert.equal(one(await asUser(U(3), `select remove_place_item($1) r`, [garri])).r.error, 'forbidden');
+assert.equal(one(await asUser(U(2), `select remove_place_item($1) r`, [garri])).r.ok, true);
+assert.equal(one(await asUser(U(5), `select admin_item_queue() r`)).r.recent[0].action, 'remove');
+await assert.rejects(asUser(U(2), `select admin_item_queue()`), /admin only/);
+await asUser(U(5), `select admin_set_item_hidden($1, true)`, [egusi]);
+assert.equal(one(await db.query(`select item_count c from places where id = $1`, [ip])).c, 0);
+await asUser(U(5), `select admin_set_item_hidden($1, false)`, [egusi]);
+assert.equal(one(await db.query(`select item_count c from places where id = $1`, [ip])).c, 1);
+
+// rate limit
+await db.query(`insert into place_item_edits (item_id, place_id, user_id, action) select gen_random_uuid(), $1, $2, 'add' from generate_series(1, 60)`, [ip, U(3)]);
+assert.equal((await upsert(U(3), { name: 'Ogbono' })).error, 'rate_limited');
+
 console.log('✓ all database tests passed');

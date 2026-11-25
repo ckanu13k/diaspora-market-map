@@ -4,14 +4,28 @@ import { supabase } from '../lib/supabase';
 import { useStore } from '../lib/store';
 import { originLabel, ORIGINS } from '../lib/taxonomy';
 import type { Details, Place, PlaceStatus, Report } from '../lib/types';
+import { ago, formatPrice } from '../lib/items';
 
-type Tab = 'reports' | 'new' | 'disputed' | 'places';
+type Tab = 'reports' | 'new' | 'disputed' | 'items' | 'places';
 
 export default function Admin() {
   const { account, places, reloadPlaces, notify } = useStore();
   const [tab, setTab] = useState<Tab>('reports');
   const [reports, setReports] = useState<Report[]>([]);
   const [editing, setEditing] = useState<Place | null>(null);
+
+  const [itemQueue, setItemQueue] = useState<ItemQueue>({ flagged: [], recent: [] });
+  const loadItems = useCallback(async () => {
+    const { data, error } = await supabase.rpc('admin_item_queue');
+    if (error) notify(error.message); else setItemQueue(data as ItemQueue);
+  }, [notify]);
+  useEffect(() => { if (account?.is_admin) loadItems(); }, [account?.is_admin, loadItems]);
+  const setHidden = async (id: string, hidden: boolean) => {
+    const { error } = await supabase.rpc('admin_set_item_hidden', { p_id: id, p_hidden: hidden });
+    if (error) return notify(error.message);
+    notify(hidden ? 'Item hidden' : 'Item restored');
+    loadItems();
+  };
 
   const loadReports = useCallback(async () => {
     const { data, error } = await supabase.from('reports').select('*').eq('status', 'open').order('created_at', { ascending: false }).limit(500);
@@ -60,6 +74,7 @@ export default function Admin() {
         <button className={tab === 'reports' ? 'on' : ''} onClick={() => setTab('reports')}>Fix reports ({fixes.length})</button>
         <button className={tab === 'new' ? 'on' : ''} onClick={() => setTab('new')}>New places ({suggestions.length})</button>
         <button className={tab === 'disputed' ? 'on' : ''} onClick={() => setTab('disputed')}>Disputed details ({disputed.length})</button>
+        <button className={tab === 'items' ? 'on' : ''} onClick={() => setTab('items')}>Menus and products ({itemQueue.flagged.length})</button>
         <button className={tab === 'places' ? 'on' : ''} onClick={() => { setEditing(null); setTab('places'); }}>Edit and verify</button>
       </div>
 
@@ -109,10 +124,52 @@ export default function Admin() {
         </ul>
       )}
 
+      {tab === 'items' && (
+        <>
+          <h2 className="admin-h2">People say these changed</h2>
+          <ul className="admin-list">
+            {!itemQueue.flagged.length && <li className="muted">No menu or product items are flagged.</li>}
+            {itemQueue.flagged.map((it) => (
+              <li key={it.id} className="disputed-row">
+                <div>
+                  <strong>{it.name}</strong> {formatPrice(it.price_cents, it.price_unit) && <span>{formatPrice(it.price_cents, it.price_unit)}</span>}
+                  <p className="muted small">{it.place_name}, {it.city ? `${it.city}, ` : ''}{it.state}. {it.changed_count} say changed, {it.confirm_count} say still right.{it.hidden && ` Hidden (${it.hidden_reason === 'votes' ? 'by votes' : 'by you'}).`} Updated {ago(it.updated_at)}.</p>
+                </div>
+                <div className="actions">
+                  <Link className="btn" to={`/place/${it.place_id}`}>View place</Link>
+                  {it.hidden
+                    ? <button className="btn primary" onClick={() => setHidden(it.id, false)}>Restore</button>
+                    : <button className="btn" onClick={() => setHidden(it.id, true)}>Hide</button>}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <h2 className="admin-h2">Recent changes</h2>
+          <ul className="admin-list">
+            {!itemQueue.recent.length && <li className="muted">No one has added items yet.</li>}
+            {itemQueue.recent.map((e) => (
+              <li key={e.id}>
+                <strong>{e.name}</strong> at <Link to={`/place/${e.place_id}`}>{e.place_name}</Link>
+                <span className="muted small"> {e.action === 'add' ? 'added' : e.action === 'update' ? 'updated' : e.action === 'remove' ? 'deleted' : e.action === 'hide' ? 'hidden' : 'restored'}
+                  {e.action === 'update' && e.before_price !== e.after_price && ` (price ${formatPrice(e.before_price, null) ?? 'none'} to ${formatPrice(e.after_price, null) ?? 'none'})`}
+                  {' '}by {e.user_email ?? 'a deleted account'}, {ago(e.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
       {tab === 'places' && <PlaceEditor key={editing?.id ?? 'search'} initial={editing} />}
     </div>
   );
 }
+
+type ItemQueue = {
+  flagged: { id: string; place_id: string; place_name: string; city: string | null; state: string; name: string; price_cents: number | null;
+    price_unit: string | null; changed_count: number; confirm_count: number; hidden: boolean; hidden_reason: string | null; updated_at: string }[];
+  recent: { id: number; action: string; created_at: string; place_id: string; place_name: string; user_email: string | null; name: string;
+    before_price: number | null; after_price: number | null }[];
+};
 
 function Suggestion({ report, onDone, onReject }: { report: Report; onDone: () => void; onReject: () => void }) {
   const { notify } = useStore();

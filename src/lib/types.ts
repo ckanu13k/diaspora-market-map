@@ -1,3 +1,5 @@
+import type { PlaceItem } from './items';
+
 export type PlaceKind = 'market' | 'restaurant';
 export type PlaceStatus = 'active' | 'possibly_closed' | 'closed' | 'removed';
 export type Verification = 'listed' | 'community' | 'verified';
@@ -41,6 +43,7 @@ export interface Details {
 
 export interface DetailsResult {
   details?: Details;
+  items?: PlaceItem[];
   premium?: boolean;
   used?: number;
   quota?: number | null;

@@ -9,6 +9,7 @@ import { ORIGIN, ORIGINS, REGIONS, US_STATES } from '../lib/taxonomy';
 import { cityCenter } from '../lib/insights';
 import { formatMiles, miles } from '../lib/geo';
 import type { Place } from '../lib/types';
+import { configured, supabase } from '../lib/supabase';
 
 type Kind = 'all' | 'market' | 'restaurant';
 type Snap = 'peek' | 'half' | 'full';
@@ -68,6 +69,19 @@ export default function Explore() {
     }
   }, [location.search, places, userLoc, selectedId]);
 
+  // Product / dish search: places whose list has a matching item (names only; prices stay behind details)
+  const [itemHits, setItemHits] = useState<Map<string, string[]>>(new Map());
+  useEffect(() => {
+    const term = deferredQ.trim();
+    if (!configured || term.length < 3) { setItemHits(new Map()); return; }
+    let live = true;
+    const t = setTimeout(async () => {
+      const { data } = await supabase.rpc('search_items', { q: term, p_state: null, lim: 200 });
+      if (live && Array.isArray(data)) setItemHits(new Map(data.map((r: { place_id: string; items: string[] }) => [r.place_id, r.items])));
+    }, 250);
+    return () => { live = false; clearTimeout(t); };
+  }, [deferredQ]);
+
   const filtered = useMemo(() => {
     const needle = deferredQ.trim().toLowerCase();
     const [ot, ov] = origin.split(':');
@@ -80,11 +94,11 @@ export default function Explore() {
       if (ot === 'origin' && !p.origins.includes(ov)) return false;
       if (needle) {
         const hay = `${p.name} ${p.city ?? ''} ${p.state} ${US_STATES[p.state] ?? ''} ${originNames(p)}`.toLowerCase();
-        if (!hay.includes(needle)) return false;
+        if (!hay.includes(needle) && !itemHits.has(p.id)) return false;
       }
       return true;
     });
-  }, [places, deferredQ, kind, origin, state, confirmedOnly, hideClosed]);
+  }, [places, deferredQ, kind, origin, state, confirmedOnly, hideClosed, itemHits]);
 
   // Sorted by distance: from you when we know where you are, otherwise from the middle of the map
   const ref = userLoc ?? (bounds ? { lat: (bounds.north + bounds.south) / 2, lng: (bounds.east + bounds.west) / 2 } : null);
@@ -180,7 +194,7 @@ export default function Explore() {
           <div className="search-row">
             <label className="search">
               <IconSearch />
-              <input type="search" placeholder="Filter by name, city or cuisine" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Filter places"
+              <input type="search" placeholder="Search places, cuisines, dishes or products" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Filter places"
                 onFocus={() => { if (isPhone() && snap === 'peek') applySnap('half'); }} />
             </label>
             <button className="icon-btn near" onClick={nearMe} disabled={locating} aria-label="Show places near me" title="Near me"><IconLocate width={18} height={18} /></button>
@@ -235,6 +249,7 @@ export default function Explore() {
                 <span className="r-main">
                   <strong>{p.name}</strong>
                   <span className="r-sub">{userLoc && d != null ? `${formatMiles(d)}, ` : ''}{p.city ? `${p.city}, ${p.state}` : US_STATES[p.state]}</span>
+                  {itemHits.has(p.id) && <span className="r-items">{p.kind === 'market' ? 'Sells' : 'Serves'} {itemHits.get(p.id)!.slice(0, 3).join(', ')}</span>}
                   <span className="r-badges"><Badge place={p} quiet /><StatusBadge place={p} /></span>
                 </span>
                 <span className="r-flags" title={originNames(p)}>{flags(p)}</span>
