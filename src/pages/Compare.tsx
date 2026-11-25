@@ -62,7 +62,7 @@ export default function Compare({ kind }: { kind: 'market' | 'restaurant' }) {
           {res.rows.map((r) => (
             <li key={r.place_id}>
               <div className="cmp-main">
-                <Link to={placePath({ id: r.place_id, name: r.name, city: r.city, state: r.state })}><strong>{r.name}</strong></Link>
+                <Link to={placePath({ id: r.place_id, name: r.name, city: r.city, state: r.state })} state={{ backLabel: `${res.product.label} prices` }}><strong>{r.name}</strong></Link>
                 <span className="r-sub">{r.miles != null ? `${r.miles} mi, ` : ''}{r.city ? `${r.city}, ` : ''}{r.state}</span>
                 <span className="cmp-item">{r.item}{!r.available && <span className="item-out"> Out of stock</span>}<span className="muted">. {r.source === 'website' ? 'From their website' : r.source === 'owner' ? 'From the owner' : 'From a shopper'}, {ago(r.checked)}</span></span>
               </div>

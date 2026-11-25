@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { placePath } from '../../shared/slug.js';
 import SearchBox from '../components/SearchBox';
-import { Badge, StatusBadge } from '../components/Badge';
+import { Badge, StatusBadge, MenuSign } from '../components/Badge';
 import { IconArrowRight, IconBasket, IconBowl, IconDownload, IconLocate, IconClose } from '../components/Icons';
 import { useStore } from '../lib/store';
 import { cuisineCounts, topCities } from '../lib/insights';
@@ -15,12 +15,12 @@ import type { Place } from '../lib/types';
 function PlaceRow({ p, distance }: { p: Place; distance?: number }) {
   return (
     <li>
-      <Link className="result" to={placePath(p)}>
+      <Link className="result" to={placePath(p)} state={{ backLabel: 'Discover' }}>
         <span className={`kind-mark ${p.kind}`} aria-label={p.kind === 'market' ? 'Market' : 'Restaurant'}>
           {p.kind === 'market' ? <IconBasket width={16} height={16} /> : <IconBowl width={16} height={16} />}
         </span>
         <span className="r-main">
-          <strong>{p.name}</strong>
+          <span className="r-name"><strong>{p.name}</strong><MenuSign place={p} /></span>
           <span className="r-sub">{distance != null ? `${formatMiles(distance)} away, ` : ''}{p.city ? `${p.city}, ${p.state}` : US_STATES[p.state]}</span>
           <span className="r-badges"><Badge place={p} quiet /><StatusBadge place={p} /></span>
         </span>

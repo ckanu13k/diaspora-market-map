@@ -570,3 +570,19 @@ code { font-size: 0.9em; background: var(--indigo-50); padding: 0.1em 0.35em; bo
 .owned h2 { font-size: 1rem; margin-bottom: 0.4rem; }
 .owned ul { margin: 0; padding-left: 1.1rem; }
 .owned a { color: var(--indigo-600); font-weight: 600; }
+
+/* ── back control on a place, menu signs ───────────────── */
+.back-btn { display: inline-flex; align-items: center; gap: 0.25rem; border: 0; background: none; padding: 0.15rem 0.1rem; margin: -0.35rem 0 0.5rem -0.2rem;
+  color: var(--indigo-600); font-weight: 600; font-size: 0.875rem; cursor: pointer; }
+.back-btn:hover { text-decoration: underline; text-underline-offset: 2px; }
+.back-chev { transform: rotate(90deg); }
+.r-name { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.r-name strong { min-width: 0; }
+.menu-sign { flex: none; display: inline-flex; align-items: center; gap: 0.2rem; height: 19px; padding: 0 0.4rem; border-radius: 999px;
+  font-size: 0.6875rem; font-weight: 700; line-height: 1; white-space: nowrap; }
+.menu-sign.fresh { background: var(--indigo-800); color: #fff; }
+.menu-sign.old { background: var(--line); color: var(--ink-2); }
+.menu-sign.link { border: 1px solid var(--indigo-400); color: var(--indigo-800); background: transparent; font-weight: 600; }
+.ms-n { font-weight: 600; opacity: 0.85; padding-left: 0.1rem; font-variant-numeric: tabular-nums; }
+.menu-key { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.4rem; font-size: 0.75rem; color: var(--muted); }
+.menu-key .menu-sign:not(:first-child) { margin-left: 0.35rem; }

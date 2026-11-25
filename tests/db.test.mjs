@@ -331,6 +331,17 @@ await assert.rejects(asUser(U(3), `select admin_decide_claim($1, true)`, [pend])
 assert.equal((await asUser(U(3), `select * from place_claims`)).rows.length, 2, 'users see only their own claims');
 await assert.rejects(asUser(U(3), `update place_claims set status = 'verified'`), /permission denied/);
 
+// ── menu signs on the public layer
+await db.query(`update place_details set menu_url = 'https://x.example/menu' where place_id = $1`, [mk2]);
+let sign = one(await asUser(null, `select item_count, items_updated_at is not null fresh, menu_link from places where id = $1`, [mk2]));
+assert.ok(sign.item_count > 0 && sign.fresh && sign.menu_link, 'item count, freshness and menu link are public');
+const u0 = one(await db.query(`select updated_at from places where id = $1`, [mk2])).updated_at;
+await new Promise((r) => setTimeout(r, 20));
+await addItem(U(2), mk2, 'Stockfish', 2500);
+assert.ok(+one(await db.query(`select updated_at from places where id = $1`, [mk2])).updated_at > +u0, 'a menu change reaches the map snapshot delta');
+await db.query(`update place_details set menu_url = null where place_id = $1`, [mk2]);
+assert.equal(one(await db.query(`select menu_link from places where id = $1`, [mk2])).menu_link, false);
+
 // ── public export for the page builder
 const ex = one(await asUser(null, `select export_public_places(null, 3) r`)).r;
 assert.equal(ex.length, 3);

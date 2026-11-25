@@ -25,6 +25,9 @@ export interface Place {
   source: 'osm' | 'overture' | 'community' | 'owner' | 'admin';
   osm_id: string | null;
   updated_at: string;
+  item_count: number;              // menu / product items listed in the app
+  items_updated_at: string | null; // when any of them was last added, changed or confirmed
+  menu_link: boolean;              // the vendor's own menu or shop page is linked
 }
 
 export interface Details {
@@ -80,4 +83,4 @@ export interface Report {
 }
 
 export const PLACE_COLUMNS =
-  'id,name,kind,origins,regions,city,state,lat,lng,status,verification,verified_at,featured,confirm_count,accurate_votes,inaccurate_votes,last_confirmed_at,source,osm_id,updated_at';
+  'id,name,kind,origins,regions,city,state,lat,lng,status,verification,verified_at,featured,confirm_count,accurate_votes,inaccurate_votes,last_confirmed_at,source,osm_id,updated_at,item_count,items_updated_at,menu_link';

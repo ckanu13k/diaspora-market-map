@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { placePath } from '../../shared/slug.js';
 import { useStore } from '../lib/store';
 import { originLabel } from '../lib/taxonomy';
-import { Badge } from '../components/Badge';
+import { Badge, MenuSign } from '../components/Badge';
 import { IconBasket, IconBowl } from '../components/Icons';
 
 export default function Saved() {
@@ -17,9 +17,9 @@ export default function Saved() {
       <ul className="results">
         {saved.map((p) => (
           <li key={p.id}>
-            <Link className="result" to={placePath(p)}>
+            <Link className="result" to={placePath(p)} state={{ backLabel: 'Saved places' }}>
               <span className={`kind-mark ${p.kind}`} aria-hidden>{p.kind === 'market' ? <IconBasket width={16} height={16} /> : <IconBowl width={16} height={16} />}</span>
-              <span className="r-main"><strong>{p.name}</strong><span className="r-sub">{p.city ? `${p.city}, ` : ''}{p.state}</span><span className="r-badges"><Badge place={p} quiet /></span></span>
+              <span className="r-main"><span className="r-name"><strong>{p.name}</strong><MenuSign place={p} /></span><span className="r-sub">{p.city ? `${p.city}, ` : ''}{p.state}</span><span className="r-badges"><Badge place={p} quiet /></span></span>
               <span className="r-flags">{p.origins.map(originLabel).join(', ')}</span>
             </Link>
           </li>

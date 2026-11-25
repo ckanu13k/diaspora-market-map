@@ -1,4 +1,4 @@
-// Cloudflare Pages Function: serves the map snapshot (data/places.v2.json) from Cloudflare's edge cache,
+// Cloudflare Pages Function: serves the map snapshot (data/places.v3.json) from Cloudflare's edge cache,
 // rebuilding it from Supabase at most every 10 minutes per data center. Visitors never wait on the
 // database, and the map is never more than ~10 minutes behind (the in-app delta closes the rest).
 // If Supabase is unreachable it falls through to the static copy made at build time.

@@ -10,7 +10,7 @@ import type { Place } from '../lib/types';
 const STYLE = 'https://tiles.openfreemap.org/styles/positron'; // quiet grey basemap so the pins carry the color
 const US_BOUNDS: LngLatBoundsLike = [[-125, 24], [-66.5, 49.5]];
 
-export interface Bounds { west: number; south: number; east: number; north: number }
+export interface Bounds { west: number; south: number; east: number; north: number; lng: number; lat: number; zoom: number }
 
 interface Props {
   places: Place[];
@@ -54,7 +54,8 @@ export default function MapView({ places, selectedId, onSelect, onBounds, flyTo,
 
     const emitBounds = () => {
       const b = m.getBounds();
-      latest.current.onBounds({ west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() });
+      const c = m.getCenter();
+      latest.current.onBounds({ west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth(), lng: c.lng, lat: c.lat, zoom: m.getZoom() });
     };
 
     m.on('load', () => {

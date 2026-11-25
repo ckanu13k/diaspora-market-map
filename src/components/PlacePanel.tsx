@@ -5,7 +5,7 @@ import { useStore } from '../lib/store';
 import { ORIGIN, prettyHours, SERVICE_LABEL, US_STATES } from '../lib/taxonomy';
 import type { DetailsResult, Place } from '../lib/types';
 import { Badge, StatusBadge } from './Badge';
-import { IconCheck, IconClock, IconClose, IconFlag, IconGlobe, IconHeart, IconHeartFilled, IconPhone, IconPin, IconRoute, IconShare, IconThumbDown, IconThumbUp } from './Icons';
+import { IconCheck, IconChevron, IconClock, IconClose, IconFlag, IconGlobe, IconHeart, IconHeartFilled, IconPhone, IconPin, IconRoute, IconShare, IconThumbDown, IconThumbUp } from './Icons';
 import ReportDialog from './ReportDialog';
 import PlaceItems from './PlaceItems';
 import { formatMiles, miles } from '../lib/geo';
@@ -14,7 +14,7 @@ import { placePath } from '../../shared/slug.js';
 // Date-only values (2026-11-25) are calendar days, not UTC midnight: read them as local noon
 const fmtDate = (s: string | null) => (s ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s}T12:00:00` : s).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null);
 
-export default function PlacePanel({ place, onClose }: { place: Place; onClose: () => void }) {
+export default function PlacePanel({ place, onClose, backLabel = null }: { place: Place; onClose: () => void; backLabel?: string | null }) {
   const { session, account, favorites, toggleFavorite, notify, patchPlace, userLoc } = useStore();
   const [res, setRes] = useState<DetailsResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -94,12 +94,15 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
 
   return (
     <article className="panel" aria-label={place.name}>
+      <button className="back-btn" onClick={onClose}>
+        <IconChevron width={16} height={16} className="back-chev" aria-hidden />{backLabel ? `Back to ${backLabel}` : 'Back'}
+      </button>
       <header className="panel-head">
         <div>
           <h2>{place.name}</h2>
           <p className="panel-where">{place.kind === 'market' ? 'Market' : 'Restaurant'} in {where}{userLoc && <>, {formatMiles(miles(userLoc, place))} away</>}</p>
         </div>
-        <button className="icon-btn" onClick={onClose} aria-label="Close"><IconClose width={18} height={18} /></button>
+        <button className="icon-btn" onClick={onClose} aria-label={backLabel ? `Close and go back to ${backLabel}` : 'Close'}><IconClose width={18} height={18} /></button>
       </header>
 
       <div className="cuisines">

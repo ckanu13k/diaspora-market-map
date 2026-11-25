@@ -2,7 +2,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import MapView, { type Bounds } from '../components/MapView';
 import PlacePanel from '../components/PlacePanel';
-import { Badge, StatusBadge } from '../components/Badge';
+import { Badge, StatusBadge, MenuSign } from '../components/Badge';
 import { IconBasket, IconBowl, IconChevron, IconClose, IconLocate, IconSearch } from '../components/Icons';
 import { useStore } from '../lib/store';
 import { ORIGIN, ORIGINS, REGIONS, US_STATES } from '../lib/taxonomy';
@@ -10,7 +10,7 @@ import { cityCenter } from '../lib/insights';
 import { formatMiles, miles } from '../lib/geo';
 import type { Place } from '../lib/types';
 import { configured, supabase } from '../lib/supabase';
-import { matchesRef, placePath, placeRef } from '../../shared/slug.js';
+import { cityPath, matchesRef, placePath, placeRef, statePath } from '../../shared/slug.js';
 
 type Kind = 'all' | 'market' | 'restaurant';
 type Snap = 'peek' | 'half' | 'full';
@@ -31,8 +31,15 @@ export default function Explore({ preset, heading }: { preset?: string; heading?
   const navigate = useNavigate();
   const location = useLocation();
   const [urlParams] = useSearchParams();
-  const params = preset != null ? new URLSearchParams(preset) : urlParams;
-  const search = preset ?? location.search;
+  // Landing pages (/us/texas/houston/) give their filters as a preset; anything the person changes goes in the address
+  const search = useMemo(() => {
+    if (preset == null) return location.search;
+    const p = new URLSearchParams(preset);
+    new URLSearchParams(location.search).forEach((v, k) => p.set(k, v));
+    const out = p.toString();
+    return out ? `?${out}` : '';
+  }, [preset, location.search]);
+  const params = preset != null ? new URLSearchParams(search) : urlParams;
   const pref = useMemo(() => placeRef(placeParam), [placeParam]);
   const selectedId = useMemo(() => (pref ? places.find((p) => matchesRef(p.id, pref))?.id ?? null : null), [pref, places]);
 
@@ -40,18 +47,50 @@ export default function Explore({ preset, heading }: { preset?: string; heading?
   const [kind, setKind] = useState<Kind>((params.get('kind') as Kind) || 'all');
   const [origin, setOrigin] = useState(params.get('origin') ?? '');
   const [state, setState] = useState(params.get('state') ?? '');
-  const [confirmedOnly, setConfirmedOnly] = useState(false);
-  const [hideClosed, setHideClosed] = useState(true);
+  const [confirmedOnly, setConfirmedOnly] = useState(params.get('verified') === '1');
+  const [hideClosed, setHideClosed] = useState(params.get('closed') !== '1');
+  const [menuOnly, setMenuOnly] = useState(params.get('menu') === '1');
   const [bounds, setBounds] = useState<Bounds | null>(null);
   const [flyTo, setFlyTo] = useState<{ lng: number; lat: number; zoom?: number; seq: number; instant?: boolean } | null>(null);
   const deferredQ = useDeferredValue(q);
 
   // Links from Discover and search suggestions arrive as query params
   const appliedSearch = useRef<string | null>(null);
+  const wroteSearch = useRef<string | null>(null);
+  // Coming back to a list page that was rebuilt: where its map and list were when a place was opened
+  const restoreList = useRef<{ view: Bounds | null; scroll: number } | null>((() => {
+    try { const v = sessionStorage.getItem(`dmm.list.${location.key}`); return v ? JSON.parse(v) : null; } catch { return null; }
+  })());
+
+  // Keep the filters in the address, so Back (and a shared link) brings the same results back
+  useEffect(() => {
+    const p = new URLSearchParams(location.search);
+    const set = (k: string, v: string) => (v ? p.set(k, v) : p.delete(k));
+    const base = preset != null ? new URLSearchParams(preset) : null;
+    const put = (k: string, v: string) => (base && (base.get(k) ?? '') === v ? p.delete(k) : set(k, v));
+    put('q', deferredQ.trim());
+    put('kind', kind !== 'all' ? kind : '');
+    put('origin', origin);
+    put('state', state);
+    set('verified', confirmedOnly ? '1' : '');
+    set('closed', hideClosed ? '' : '1');
+    set('menu', menuOnly ? '1' : '');
+    const next = p.toString() ? `?${p}` : '';
+    if (next === location.search) return;
+    const merged = preset != null ? (() => { const m = new URLSearchParams(preset); p.forEach((v, k) => m.set(k, v)); return m.toString() ? `?${m}` : ''; })() : next;
+    wroteSearch.current = merged;
+    navigate({ pathname: location.pathname, search: next }, { replace: true, state: location.state });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deferredQ, kind, origin, state, confirmedOnly, hideClosed, menuOnly]);
   useEffect(() => {
     if (!places.length || appliedSearch.current === search) return;
+    const own = wroteSearch.current === search;
     appliedSearch.current = search;
+    if (own) return;   // the address changed because the filters did: nothing to apply
     const p = new URLSearchParams(search);
+    setConfirmedOnly(p.get('verified') === '1');
+    setHideClosed(p.get('closed') !== '1');
+    setMenuOnly(p.get('menu') === '1');
     if (p.has('q')) setQ(p.get('q') ?? '');
     if (p.has('kind')) setKind((p.get('kind') as Kind) || 'all');
     if (p.has('origin')) setOrigin(p.get('origin') ?? '');
@@ -60,6 +99,12 @@ export default function Explore({ preset, heading }: { preset?: string; heading?
       setState(s);
       const ps = places.filter((x) => x.state === s);
       if (ps.length) setFlyTo({ lat: ps.reduce((a, x) => a + x.lat, 0) / ps.length, lng: ps.reduce((a, x) => a + x.lng, 0) / ps.length, zoom: 6, seq: Date.now(), instant: true });
+    }
+    if (restoreList.current && !selectedId) {
+      const r = restoreList.current;
+      restoreList.current = null;
+      if (r.view) { pendingScroll.current = { scroll: r.scroll, view: r.view }; setFlyTo({ lng: r.view.lng, lat: r.view.lat, zoom: r.view.zoom, seq: Date.now(), instant: true }); }
+      return;
     }
     const city = p.get('city');
     if (city) {
@@ -96,6 +141,7 @@ export default function Explore({ preset, heading }: { preset?: string; heading?
       if (state && p.state !== state) return false;
       if (hideClosed && p.status !== 'active') return false;
       if (confirmedOnly && p.verification === 'listed') return false;
+      if (menuOnly && !(p.item_count > 0 || p.menu_link)) return false;
       if (ot === 'region' && !p.regions.includes(ov)) return false;
       if (ot === 'origin' && !p.origins.includes(ov)) return false;
       if (needle) {
@@ -104,7 +150,7 @@ export default function Explore({ preset, heading }: { preset?: string; heading?
       }
       return true;
     });
-  }, [places, deferredQ, kind, origin, state, confirmedOnly, hideClosed, itemHits]);
+  }, [places, deferredQ, kind, origin, state, confirmedOnly, hideClosed, menuOnly, itemHits]);
 
   // Sorted by distance: from you when we know where you are, otherwise from the middle of the map
   const ref = userLoc ?? (bounds ? { lat: (bounds.north + bounds.south) / 2, lng: (bounds.east + bounds.west) / 2 } : null);
@@ -117,6 +163,33 @@ export default function Explore({ preset, heading }: { preset?: string; heading?
   }, [filtered, bounds, ref?.lat, ref?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selected = selectedId ? places.find((p) => p.id === selectedId) ?? null : null;
+
+  // Back from a place: put the map and the list where they were
+  const prevSelected = useRef<string | null>(null);
+  const pendingScroll = useRef<{ scroll: number; view: Bounds } | null>(null);
+  useEffect(() => {
+    const pend = pendingScroll.current;
+    if (!pend || !bounds || selectedId) return;
+    if (Math.abs(bounds.zoom - pend.view.zoom) > 0.05 || Math.abs(bounds.lng - pend.view.lng) > 1e-4) return;   // not there yet
+    pendingScroll.current = null;
+    requestAnimationFrame(() => { if (resultsRef.current) resultsRef.current.scrollTop = pend.scroll; });
+  }, [bounds, inView, selectedId]);
+  useEffect(() => {
+    const was = prevSelected.current;
+    prevSelected.current = selectedId;
+    if (was && !selectedId && before.current) {
+      const { view, scroll } = before.current;
+      before.current = null;
+      // Jump the map back first; the list refills for that view, then its scroll is put back (below)
+      if (view) { pendingScroll.current = { scroll, view }; setFlyTo({ lng: view.lng, lat: view.lat, zoom: view.zoom, seq: Date.now(), instant: true }); }
+      else requestAnimationFrame(() => { if (resultsRef.current) resultsRef.current.scrollTop = scroll; });
+    }
+    // A place opened from another page (Discover, Compare, Saved, a search engine): show it on the map
+    if (selectedId && !was && !before.current) {
+      const p = places.find((x) => x.id === selectedId);
+      if (p) setFlyTo({ lng: p.lng, lat: p.lat, zoom: 14, seq: Date.now(), instant: true });
+    }
+  }, [selectedId, places]);
 
   // ── phone bottom sheet: three snap points, drag or tap the handle ──
   const sheetRef = useRef<HTMLElement>(null);
@@ -161,11 +234,29 @@ export default function Explore({ preset, heading }: { preset?: string; heading?
     applySnap(nearest);
   };
 
+  const resultsRef = useRef<HTMLUListElement>(null);
+  const before = useRef<{ view: Bounds | null; scroll: number } | null>(null);
   const select = (id: string, fly = false) => {
     const p = places.find((x) => x.id === id);
-    if (p) navigate(`${placePath(p)}${search}`);
+    if (!p) return;
+    // Opening a place from the list or map: remember where the person was, so Back returns them there.
+    // Switching to another place replaces the history entry, so Back still means "back to the results".
+    if (!selectedId) {
+      before.current = { view: bounds, scroll: resultsRef.current?.scrollTop ?? 0 };
+      // Also keep it for this history entry, in case the page is rebuilt on the way back (city pages)
+      try { sessionStorage.setItem(`dmm.list.${location.key}`, JSON.stringify(before.current)); } catch { /* private mode */ }
+    }
+    navigate(`${placePath(p)}${search}`, { replace: Boolean(selectedId), state: { backLabel: heading ? 'the list' : 'results', fromList: true } });
     if (fly && p) setFlyTo({ lng: p.lng, lat: p.lat, zoom: 15, seq: Date.now() });
   };
+
+  // Close / Back: return to wherever the person came from (results, Compare, Saved, Discover…);
+  // with no earlier page in this tab (a link from outside), go to the place's city instead
+  const navState = location.state as { backLabel?: string; fromList?: boolean } | null;
+  const hasHistory = ((window.history.state as { idx?: number } | null)?.idx ?? 0) > 0;   // an earlier page of this app in this tab
+  const fallback = selected ? (selected.city ? cityPath(US_STATES[selected.state] ?? selected.state, selected.city) : statePath(US_STATES[selected.state] ?? selected.state)) : '/map';
+  const backLabel = hasHistory ? (navState?.backLabel ?? null) : selected?.city ? `more in ${selected.city}` : 'the map';
+  const closePlace = () => (hasHistory ? navigate(-1) : navigate(fallback, { replace: true }));
 
   const pickState = (s: string) => {
     setState(s);
@@ -178,8 +269,8 @@ export default function Explore({ preset, heading }: { preset?: string; heading?
     if (loc) setFlyTo({ ...loc, zoom: 12, seq: Date.now() });
   };
 
-  const activeFilters = [kind !== 'all', !!origin, !!state, confirmedOnly, !!q].filter(Boolean).length;
-  const clearFilters = () => { setKind('all'); setOrigin(''); setState(''); setConfirmedOnly(false); setQ(''); navigate('/map', { replace: true }); };
+  const activeFilters = [kind !== 'all', !!origin, !!state, confirmedOnly, menuOnly, !!q].filter(Boolean).length;
+  const clearFilters = () => { setKind('all'); setOrigin(''); setState(''); setConfirmedOnly(false); setMenuOnly(false); setQ(''); if (preset == null) navigate('/map', { replace: true }); };
 
   const countLabel = placesLoading && !places.length
     ? 'Loading places…'
@@ -235,13 +326,19 @@ export default function Explore({ preset, heading }: { preset?: string; heading?
             </div>
             <div className="switches">
               <label className="switch"><input type="checkbox" checked={confirmedOnly} onChange={(e) => setConfirmedOnly(e.target.checked)} /><span aria-hidden />Verified or confirmed only</label>
+              <label className="switch"><input type="checkbox" checked={menuOnly} onChange={(e) => setMenuOnly(e.target.checked)} /><span aria-hidden />Has a menu or product list</label>
               <label className="switch"><input type="checkbox" checked={hideClosed} onChange={(e) => setHideClosed(e.target.checked)} /><span aria-hidden />Hide places that may be closed</label>
             </div>
+            <p className="menu-key">
+              <span className="menu-sign fresh" aria-hidden>Menu</span> prices updated in the last 2 months
+              <span className="menu-sign old" aria-hidden>Menu</span> older
+              <span className="menu-sign link" aria-hidden>Menu link</span> on their own website
+            </p>
             {activeFilters > 0 && <button className="clear-filters" onClick={clearFilters}><IconClose width={14} height={14} />Clear {activeFilters === 1 ? 'filter' : `${activeFilters} filters`}</button>}
           </div>
         </div>
 
-        <ul className="results">
+        <ul className="results" ref={resultsRef}>
           {placesError && <li className="empty">The listings didn't load. Check your connection and reload the page.</li>}
           {placesLoading && !places.length && Array.from({ length: 6 }, (_, i) => <li key={i} className="sk-li" aria-hidden><span className="sk-row" /></li>)}
           {!placesLoading && !placesError && places.length > 0 && inView.length === 0 && (
@@ -254,7 +351,7 @@ export default function Explore({ preset, heading }: { preset?: string; heading?
                   {p.kind === 'market' ? <IconBasket width={16} height={16} /> : <IconBowl width={16} height={16} />}
                 </span>
                 <span className="r-main">
-                  <strong>{p.name}</strong>
+                  <span className="r-name"><strong>{p.name}</strong><MenuSign place={p} /></span>
                   <span className="r-sub">{userLoc && d != null ? `${formatMiles(d)}, ` : ''}{p.city ? `${p.city}, ${p.state}` : US_STATES[p.state]}</span>
                   {itemHits.has(p.id) && <span className="r-items">{p.kind === 'market' ? 'Sells' : 'Serves'} {itemHits.get(p.id)!.slice(0, 3).join(', ')}</span>}
                   <span className="r-badges"><Badge place={p} quiet /><StatusBadge place={p} /></span>
@@ -277,7 +374,7 @@ export default function Explore({ preset, heading }: { preset?: string; heading?
           <span><i className="dot restaurant" />Restaurant</span>
           <span><i className="dot ring" />Verified</span>
         </div>
-        {selected && <PlacePanel place={selected} onClose={() => navigate(`/map${search}`)} />}
+        {selected && <PlacePanel place={selected} onClose={closePlace} backLabel={backLabel} />}
       </div>
     </div>
   );
