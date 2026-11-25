@@ -3,10 +3,25 @@ name: Refresh listings from Overture Maps
 # Overture publishes a new places release roughly monthly. This job extracts US African/Caribbean
 # markets & restaurants, commits them to data/, and Supabase's ingest-places function (pg_cron,
 # every 10 min) imports the new release automatically. No secrets needed.
+# Each run also checks every listed website (dead, parked or wrong ones are dropped) and pulls
+# free machine-readable menus / product lists. See scripts/web/check.mjs.
 on:
   schedule:
     - cron: '23 8 * * 1'   # weekly check (Mondays 08:23 UTC); commits only when data changed
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Check websites and report, but do not commit data'
+        type: boolean
+        default: false
+      web_states:
+        description: 'Only check websites in these states (e.g. TX,GA); blank = all'
+        type: string
+        default: ''
+      report_key:
+        description: 'Public key (JWK JSON) to encrypt a per-site report with; blank = no report'
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -24,9 +39,19 @@ jobs:
         with: { node-version: 22 }
       - name: Extract from Overture (public S3)
         run: python scripts/overture/extract.py /tmp/overture_raw.jsonl
-      - name: Classify and split by state
+      - name: Classify, check websites, split by state
         run: node scripts/overture/build.mjs /tmp/overture_raw.jsonl
+        env:
+          WEB_CHECK: '1'
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+          WEB_STATES: ${{ inputs.web_states }}
+          WEB_REPORT_KEY: ${{ inputs.report_key }}
+      - name: Upload encrypted website report
+        if: ${{ inputs.report_key != '' }}
+        uses: actions/upload-artifact@v4
+        with: { name: web-report, path: /tmp/web-report.enc.json, retention-days: 3, if-no-files-found: ignore }
       - name: Commit if changed
+        if: ${{ !inputs.dry_run }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

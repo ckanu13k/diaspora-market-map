@@ -25,10 +25,12 @@ const ERRORS: Record<string, string> = {
   forbidden: 'Only the person who added it can delete it, within a day. Mark it as changed instead.',
 };
 
-export default function PlaceItems({ place, items, website, onItems }: {
+export default function PlaceItems({ place, items, website, menuUrl = null, sourceUrl = null, onItems }: {
   place: Place;
   items: PlaceItem[];
   website: string | null;
+  menuUrl?: string | null;
+  sourceUrl?: string | null;
   onItems: (items: PlaceItem[]) => void;
 }) {
   const { session, notify } = useStore();
@@ -49,6 +51,7 @@ export default function PlaceItems({ place, items, website, onItems }: {
       .then(({ data }) => setMyVotes(Object.fromEntries((data ?? []).map((v) => [v.item_id, v.vote]))));
   }, [session?.user.id, items.map((i) => i.id).join()]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const fromSite = items.filter((i) => i.source === 'website').length;
   const lastChecked = useMemo(
     () => items.reduce<string | null>((m, i) => (!m || i.last_confirmed_at > m ? i.last_confirmed_at : m), null),
     [items],
@@ -134,11 +137,18 @@ export default function PlaceItems({ place, items, website, onItems }: {
         <h3 id={`${uid}-h`}>{title}</h3>
         {items.length > 0 && lastChecked && <span className="items-sub">{items.length} {items.length === 1 ? 'item' : 'items'}, last checked {ago(lastChecked)}</span>}
       </div>
+      {fromSite > 0 && (
+        <p className="items-src">
+          {fromSite === items.length ? 'From' : `${fromSite} of these come from`} <a href={sourceUrl ?? menuUrl ?? website ?? '#'} target="_blank" rel="noreferrer">their website</a>. Prices in store can differ.
+        </p>
+      )}
 
       {items.length === 0 && !draft && (
         <p className="items-empty">
-          {isMarket ? "No products listed yet. Shopped here lately? Add what they sell and what it cost." : "No menu yet. Eaten here lately? Add a dish and its price."}
-          {website && <> You can also check <a href={website} target="_blank" rel="noreferrer">their website</a>.</>}
+          {menuUrl
+            ? <><a href={menuUrl} target="_blank" rel="noreferrer">{isMarket ? 'See what they sell on their website' : 'See their menu on their website'}</a>. Been here lately? Add {isMarket ? 'what you bought and what it cost' : 'a dish and its price'} so others can see it here.</>
+            : <>{isMarket ? 'No products listed yet. Shopped here lately? Add what they sell and what it cost.' : 'No menu yet. Eaten here lately? Add a dish and its price.'}
+              {website && <> You can also check <a href={website} target="_blank" rel="noreferrer">their website</a>.</>}</>}
         </p>
       )}
 
@@ -163,7 +173,9 @@ export default function PlaceItems({ place, items, website, onItems }: {
                     {it.description && <span className="item-desc">{it.description}</span>}
                     <span className={`item-meta ${stale ? 'stale' : ''}`}>
                       {!it.available && <span className="item-out">{outLabel}. </span>}
-                      {stale ? `Not checked since ${ago(it.last_confirmed_at)}` : `Checked ${ago(it.last_confirmed_at)}`}
+                      {it.source === 'website'
+                        ? `From their website, checked ${ago(it.last_confirmed_at)}`
+                        : stale ? `Not checked since ${ago(it.last_confirmed_at)}` : `Checked ${ago(it.last_confirmed_at)}`}
                       {it.changed_count > 0 && `, ${it.changed_count} ${it.changed_count === 1 ? 'person says' : 'people say'} it changed`}
                     </span>
                   </div>

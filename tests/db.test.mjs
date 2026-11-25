@@ -226,4 +226,42 @@ assert.equal(one(await db.query(`select item_count c from places where id = $1`,
 await db.query(`insert into place_item_edits (item_id, place_id, user_id, action) select gen_random_uuid(), $1, $2, 'add' from generate_series(1, 60)`, [ip, U(3)]);
 assert.equal((await upsert(U(3), { name: 'Ogbono' })).error, 'rate_limited');
 
+// ── website check results + imported menus
+const wsRef = 'overture:o1';
+const wsPid = one(await db.query(`select id from places where source_ref = $1`, [wsRef])).id;
+const wsRow = (extra) => ({ ...ov(1), website: 'https://ov1.example/', website_status: 'ok', website_checked_at: '2026-11-25', website_dropped: null,
+  menu_url: 'https://ov1.example/menu', items_url: 'https://ov1.example/menu', ...extra });
+await asService(`select ingest_places($1::jsonb, 'overture')`, [JSON.stringify([wsRow({ items: [
+  { name: 'Jollof rice', section: 'Rice', price_cents: 1200, available: true },
+  { name: 'Egusi soup', section: 'Soups', price_cents: 1499, available: true },
+] })])]);
+let wd = one(await db.query(`select website, website_status, menu_url from place_details where place_id = $1`, [wsPid]));
+assert.deepEqual(wd, { website: 'https://ov1.example/', website_status: 'ok', menu_url: 'https://ov1.example/menu' });
+let wi = (await db.query(`select name, source, price_cents from place_items where place_id = $1 order by name`, [wsPid])).rows;
+assert.deepEqual(wi.map((x) => [x.name, x.source, x.price_cents]), [['Egusi soup', 'website', 1499], ['Jollof rice', 'website', 1200]]);
+// a person edits one → it becomes theirs; the next import leaves it alone and removes what the site dropped
+const jollof = one(await db.query(`select id from place_items where place_id = $1 and name = 'Jollof rice'`, [wsPid])).id;
+await asUser(U(2), `select upsert_place_item($1, 'Jollof rice', 'Rice', null, 1350, null, true, $2)`, [wsPid, jollof]);
+assert.equal(one(await db.query(`select source from place_items where id = $1`, [jollof])).source, 'community');
+await asService(`select ingest_places($1::jsonb, 'overture')`, [JSON.stringify([wsRow({ website_checked_at: '2026-12-02', items: [
+  { name: 'Jollof rice', section: 'Rice', price_cents: 999, available: true },
+  { name: 'Suya', section: 'Grills', price_cents: 1500, available: false },
+] })])]);
+wi = (await db.query(`select name, source, price_cents, available from place_items where place_id = $1 order by name`, [wsPid])).rows;
+assert.deepEqual(wi.map((x) => [x.name, x.source, x.price_cents, x.available]), [['Jollof rice', 'community', 1350, true], ['Suya', 'website', 1500, false]],
+  'people\'s edits win; items gone from the site are removed');
+assert.equal(one(await db.query(`select item_count c from places where id = $1`, [wsPid])).c, 2);
+// a run without the website check keeps earlier results; a dead site drops the link
+await asService(`select ingest_places($1::jsonb, 'overture')`, [JSON.stringify([ov(1)])]);
+assert.equal(one(await db.query(`select website_status s from place_details where place_id = $1`, [wsPid])).s, 'ok');
+assert.equal((await db.query(`select 1 from place_items where place_id = $1`, [wsPid])).rows.length, 2, 'rows without items leave items alone');
+await asService(`select ingest_places($1::jsonb, 'overture')`, [JSON.stringify([wsRow({ website: null, website_status: 'parked', website_dropped: 'https://ov1.example/', menu_url: null, items_url: null, items: [] })])]);
+wd = one(await db.query(`select website, website_status, website_dropped from place_details where place_id = $1`, [wsPid]));
+assert.deepEqual(wd, { website: null, website_status: 'parked', website_dropped: 'https://ov1.example/' });
+assert.deepEqual((await db.query(`select name from place_items where place_id = $1`, [wsPid])).rows.map((x) => x.name), ['Jollof rice'], 'website items go with the website');
+await assert.rejects(asUser(U(2), `select ingest_website_items($1, '[]'::jsonb, now())`, [wsPid]), /permission denied/);
+const wr = one(await asUser(U(5), `select admin_website_report() r`)).r;
+assert.equal(wr.counts.parked, 1);
+await assert.rejects(asUser(U(2), `select admin_website_report()`), /admin only/);
+
 console.log('✓ all database tests passed');

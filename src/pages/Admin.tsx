@@ -20,6 +20,18 @@ export default function Admin() {
     if (error) notify(error.message); else setItemQueue(data as ItemQueue);
   }, [notify]);
   useEffect(() => { if (account?.is_admin) loadItems(); }, [account?.is_admin, loadItems]);
+  const [webReport, setWebReport] = useState<WebReport | null>(null);
+  useEffect(() => {
+    if (!account?.is_admin) return;
+    supabase.rpc('admin_website_report').then(({ data, error }) => { if (!error) setWebReport(data as WebReport); });
+  }, [account?.is_admin]);
+  const markClosed = async (id: string) => {
+    const { error } = await supabase.rpc('admin_set_status', { p_place: id, p_status: 'closed' });
+    if (error) return notify(error.message);
+    setWebReport((w) => (w ? { ...w, closed_notice: w.closed_notice.filter((x) => x.place_id !== id) } : w));
+    reloadPlaces();
+    notify('Marked closed');
+  };
   const setHidden = async (id: string, hidden: boolean) => {
     const { error } = await supabase.rpc('admin_set_item_hidden', { p_id: id, p_hidden: hidden });
     if (error) return notify(error.message);
@@ -74,7 +86,7 @@ export default function Admin() {
         <button className={tab === 'reports' ? 'on' : ''} onClick={() => setTab('reports')}>Fix reports ({fixes.length})</button>
         <button className={tab === 'new' ? 'on' : ''} onClick={() => setTab('new')}>New places ({suggestions.length})</button>
         <button className={tab === 'disputed' ? 'on' : ''} onClick={() => setTab('disputed')}>Disputed details ({disputed.length})</button>
-        <button className={tab === 'items' ? 'on' : ''} onClick={() => setTab('items')}>Menus and products ({itemQueue.flagged.length})</button>
+        <button className={tab === 'items' ? 'on' : ''} onClick={() => setTab('items')}>Menus, products, websites ({itemQueue.flagged.length + (webReport?.closed_notice.length ?? 0)})</button>
         <button className={tab === 'places' ? 'on' : ''} onClick={() => { setEditing(null); setTab('places'); }}>Edit and verify</button>
       </div>
 
@@ -126,6 +138,34 @@ export default function Admin() {
 
       {tab === 'items' && (
         <>
+          {webReport && (
+            <>
+              <h2 className="admin-h2">Website check</h2>
+              <p className="muted small">
+                {Object.keys(webReport.counts).length === 0 ? 'The weekly check has not run yet.' : <>
+                  {WEB_LABELS.filter(([k]) => webReport.counts[k]).map(([k, label]) => `${webReport.counts[k]} ${label}`).join('. ')}.
+                  {' '}{webReport.items?.items ?? 0} items imported from {webReport.items?.places ?? 0} websites.
+                </>}
+              </p>
+              {webReport.closed_notice.length > 0 && (
+                <>
+                  <h2 className="admin-h2">Their website says they closed</h2>
+                  <ul className="admin-list">
+                    {webReport.closed_notice.map((x) => (
+                      <li key={x.place_id} className="disputed-row">
+                        <div><strong>{x.name}</strong> <span className="muted">{x.city ? `${x.city}, ` : ''}{x.state}</span>
+                          <p className="muted small">{x.url && <a href={x.url} target="_blank" rel="noreferrer">Their website</a>} says they closed. Check, then mark it closed.</p></div>
+                        <div className="actions">
+                          <Link className="btn" to={`/place/${x.place_id}`}>View place</Link>
+                          <button className="btn primary" onClick={() => markClosed(x.place_id)}>Mark closed</button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </>
+          )}
           <h2 className="admin-h2">People say these changed</h2>
           <ul className="admin-list">
             {!itemQueue.flagged.length && <li className="muted">No menu or product items are flagged.</li>}
@@ -163,6 +203,20 @@ export default function Admin() {
     </div>
   );
 }
+
+type WebReport = {
+  counts: Record<string, number>;
+  closed_notice: { place_id: string; name: string; city: string | null; state: string; url: string | null }[];
+  items: { places: number; items: number } | null;
+};
+const WEB_LABELS: [string, string][] = [
+  ['ok', 'working and match the business'], ['thin', 'working (page has little text to compare)'], ['social', 'social pages'],
+  ['ordering_platform', 'ordering-app pages'], ['not_checked_blocked', 'block automated checks (kept)'], ['not_checked_robots', 'ask bots not to visit (kept)'],
+  ['not_checked_tls', 'certificate quirk (kept)'], ['mismatch', 'dropped: a different business'], ['parked', 'dropped: parked or for sale'],
+  ['placeholder', 'dropped: placeholder or suspended'], ['redirected_away', 'dropped: redirect to a hosting company'], ['closed_notice', 'dropped: site says closed'],
+  ['not_found', 'dropped: page not found'], ['dead_dns', 'dropped: domain no longer exists'], ['dead_refused', 'dropped: server gone'],
+  ['bad_certificate', 'dropped: broken security certificate'], ['timeout', 'dropped this week: no response'], ['server_error', 'dropped this week: server errors'],
+];
 
 type ItemQueue = {
   flagged: { id: string; place_id: string; place_name: string; city: string | null; state: string; name: string; price_cents: number | null;

@@ -39,6 +39,10 @@ export interface Details {
   services: string[];
   verification_note: string | null;
   updated_at: string;
+  website_status?: string | null;
+  website_checked_at?: string | null;
+  menu_url?: string | null;
+  items_source_url?: string | null;
 }
 
 export interface DetailsResult {

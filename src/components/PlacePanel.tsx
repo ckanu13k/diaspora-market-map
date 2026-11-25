@@ -153,7 +153,11 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
               <a href={`https://maps.apple.com/?daddr=${place.lat},${place.lng}`} target="_blank" rel="noreferrer">Apple Maps</a>
             </span></li>
             {d.phone && <li><IconPhone /><a href={`tel:${d.phone.replace(/[^\d+]/g, '')}`}>{d.phone}</a></li>}
-            {d.website && <li><IconGlobe /><a href={d.website} target="_blank" rel="noreferrer">{d.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</a></li>}
+            {d.website && <li><IconGlobe /><span className="links">
+              <a href={d.website} target="_blank" rel="noreferrer">{d.website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</a>
+              {d.menu_url && <a href={d.menu_url} target="_blank" rel="noreferrer">{place.kind === 'market' ? 'Shop online' : 'See their menu'}</a>}
+              {d.website_status === 'ok' && d.website_checked_at && <span className="checked">Link checked {fmtDate(d.website_checked_at)}</span>}
+            </span></li>}
             {d.opening_hours && <li><IconClock /><span>{prettyHours(d.opening_hours).map((l) => <span key={l} className="hours-line">{l}</span>)}</span></li>}
             {(d.instagram || d.facebook) && <li><IconShare /><span className="links">
               {d.instagram && <a href={d.instagram} target="_blank" rel="noreferrer">Instagram</a>}
@@ -181,7 +185,7 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
       </section>
 
       {d && (
-        <PlaceItems place={place} items={res?.items ?? []} website={d.website}
+        <PlaceItems place={place} items={res?.items ?? []} website={d.website} menuUrl={d.menu_url ?? null} sourceUrl={d.items_source_url ?? null}
           onItems={(items) => setRes((r) => (r ? { ...r, items } : r))} />
       )}
 

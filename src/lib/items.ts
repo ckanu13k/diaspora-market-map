@@ -8,7 +8,7 @@ export interface PlaceItem {
   price_cents: number | null;
   price_unit: string | null;
   available: boolean;
-  source: 'community' | 'owner' | 'admin';
+  source: 'community' | 'owner' | 'admin' | 'website';
   updated_at: string;
   last_confirmed_at: string;
   confirm_count: number;
