@@ -10,6 +10,7 @@ import { cityCenter } from '../lib/insights';
 import { formatMiles, miles } from '../lib/geo';
 import type { Place } from '../lib/types';
 import { configured, supabase } from '../lib/supabase';
+import { matchesRef, placePath, placeRef } from '../../shared/slug.js';
 
 type Kind = 'all' | 'market' | 'restaurant';
 type Snap = 'peek' | 'half' | 'full';
@@ -23,12 +24,17 @@ function snapHeights(container: number) {
   return { peek: 176, half: Math.round(container * 0.52), full: Math.round(container * 0.9) };
 }
 
-export default function Explore() {
+/** preset: filters given by a state, city or cuisine page (/us/texas/houston/ …), same shape as ?query */
+export default function Explore({ preset, heading }: { preset?: string; heading?: string } = {}) {
   const { places, placesLoading, placesError, userLoc, locating, requestLocation } = useStore();
-  const { id: selectedId = null } = useParams();
+  const { id: placeParam = null } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [params] = useSearchParams();
+  const [urlParams] = useSearchParams();
+  const params = preset != null ? new URLSearchParams(preset) : urlParams;
+  const search = preset ?? location.search;
+  const pref = useMemo(() => placeRef(placeParam), [placeParam]);
+  const selectedId = useMemo(() => (pref ? places.find((p) => matchesRef(p.id, pref))?.id ?? null : null), [pref, places]);
 
   const [q, setQ] = useState(params.get('q') ?? '');
   const [kind, setKind] = useState<Kind>((params.get('kind') as Kind) || 'all');
@@ -43,9 +49,9 @@ export default function Explore() {
   // Links from Discover and search suggestions arrive as query params
   const appliedSearch = useRef<string | null>(null);
   useEffect(() => {
-    if (!places.length || appliedSearch.current === location.search) return;
-    appliedSearch.current = location.search;
-    const p = new URLSearchParams(location.search);
+    if (!places.length || appliedSearch.current === search) return;
+    appliedSearch.current = search;
+    const p = new URLSearchParams(search);
     if (p.has('q')) setQ(p.get('q') ?? '');
     if (p.has('kind')) setKind((p.get('kind') as Kind) || 'all');
     if (p.has('origin')) setOrigin(p.get('origin') ?? '');
@@ -67,7 +73,7 @@ export default function Explore() {
     } else if (!city && !p.has('state') && userLoc && !selectedId) {
       setFlyTo({ ...userLoc, zoom: 10, seq: Date.now(), instant: true });
     }
-  }, [location.search, places, userLoc, selectedId]);
+  }, [search, places, userLoc, selectedId]);
 
   // Product / dish search: places whose list has a matching item (names only; prices stay behind details)
   const [itemHits, setItemHits] = useState<Map<string, string[]>>(new Map());
@@ -156,8 +162,8 @@ export default function Explore() {
   };
 
   const select = (id: string, fly = false) => {
-    navigate(`/place/${id}${location.search}`);
     const p = places.find((x) => x.id === id);
+    if (p) navigate(`${placePath(p)}${search}`);
     if (fly && p) setFlyTo({ lng: p.lng, lat: p.lat, zoom: 15, seq: Date.now() });
   };
 
@@ -186,6 +192,7 @@ export default function Explore() {
           role="button" tabIndex={0} aria-label={snap === 'full' ? 'Collapse list' : 'Expand list'}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); applySnap(snap === 'peek' ? 'half' : snap === 'half' ? 'full' : 'peek'); } }}>
           <span className="grip" aria-hidden />
+          {heading && <h1 className="landing-h1">{heading}</h1>}
           <span className="count" aria-live="polite">{countLabel}</span>
           {filtered.length !== inView.length && <span className="count-sub">{filtered.length.toLocaleString()} across the US</span>}
         </div>
@@ -270,7 +277,7 @@ export default function Explore() {
           <span><i className="dot restaurant" />Restaurant</span>
           <span><i className="dot ring" />Verified</span>
         </div>
-        {selected && <PlacePanel place={selected} onClose={() => navigate(`/map${location.search}`)} />}
+        {selected && <PlacePanel place={selected} onClose={() => navigate(`/map${search}`)} />}
       </div>
     </div>
   );

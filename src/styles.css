@@ -532,3 +532,41 @@ code { font-size: 0.9em; background: var(--indigo-50); padding: 0.1em 0.35em; bo
 .items-src { margin: -0.2rem 0 0; font-size: 0.8125rem; color: var(--muted); line-height: 1.45; }
 .items-src a { color: var(--indigo-600); font-weight: 600; }
 .facts .checked { font-size: 0.8125rem; color: var(--muted); }
+.landing-h1 { font-size: 1rem; font-weight: 700; margin: 0 0 0.15rem; color: var(--ink); line-height: 1.3; width: 100%; }
+.badge.owner { background: var(--indigo-100); color: var(--indigo-800); }
+.owner-line { font-size: 0.875rem; color: var(--ink-2); margin: 0.8rem 0 0; }
+.owner-line a, .compare-line a { color: var(--indigo-600); font-weight: 600; }
+.compare-line { margin: -0.2rem 0 0; font-size: 0.8125rem; color: var(--ink-2); line-height: 1.5; }
+
+/* ── compare prices ─────────────────────────────────────── */
+.prices-filters { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin-bottom: 1.25rem; }
+.prices-filters .search { flex: 1 1 260px; }
+.prices-filters .select { flex: 0 0 200px; }
+.prices-h2 { font-size: 1.125rem; margin: 1.5rem 0 0.7rem; }
+.product-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.6rem; }
+.product-card { display: grid; gap: 0.2rem; padding: 0.85rem 0.95rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); text-decoration: none; color: var(--ink-2); font-size: 0.8125rem; }
+.product-card strong { color: var(--ink); font-size: 0.9375rem; }
+.product-card:hover { border-color: var(--indigo-400); }
+.product-range { color: var(--indigo-800); font-weight: 600; font-variant-numeric: tabular-nums; }
+.crumbs { font-size: 0.875rem; margin: 0 0 0.4rem; }
+.crumbs a { color: var(--indigo-600); font-weight: 600; }
+.compare-upsell { margin-bottom: 1.25rem; }
+.compare-list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
+.compare-list li { display: grid; grid-template-columns: 1fr auto; gap: 1rem; padding: 0.85rem 1rem; border-bottom: 1px solid var(--line); }
+.compare-list li:last-child { border-bottom: 0; }
+.cmp-main { display: grid; gap: 0.15rem; min-width: 0; }
+.cmp-main a { color: var(--ink); text-decoration: none; }
+.cmp-main a:hover strong { text-decoration: underline; }
+.cmp-item { font-size: 0.8125rem; color: var(--ink-2); }
+.cmp-price { display: grid; justify-items: end; align-content: start; gap: 0.1rem; font-variant-numeric: tabular-nums; font-size: 0.8125rem; }
+.cmp-price strong { font-size: 1rem; color: var(--ink); }
+.locked { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; font-weight: 600; color: var(--gold-ink); background: #fbecc8; padding: 0.25rem 0.55rem; border-radius: 999px; }
+.claim-way { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 1.1rem 1.2rem; display: grid; gap: 0.6rem; justify-items: start; }
+.claim-way h2 { font-size: 1.0625rem; }
+.claim-way p { margin: 0; line-height: 1.55; color: var(--ink-2); }
+.claim-code code { font-size: 1.05rem; padding: 0.3rem 0.55rem; background: var(--indigo-50); border: 1px solid var(--indigo-100); border-radius: var(--r-sm); user-select: all; }
+.small { font-size: 0.8125rem; }
+.owned { margin: 1rem 0; }
+.owned h2 { font-size: 1rem; margin-bottom: 0.4rem; }
+.owned ul { margin: 0; padding-left: 1.1rem; }
+.owned a { color: var(--indigo-600); font-weight: 600; }

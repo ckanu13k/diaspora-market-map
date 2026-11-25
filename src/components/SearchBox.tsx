@@ -5,12 +5,17 @@ import { useStore } from '../lib/store';
 import { ORIGINS, US_STATES } from '../lib/taxonomy';
 import { topCities } from '../lib/insights';
 import { IconBasket, IconBowl, IconPin, IconSearch } from './Icons';
+import productsRaw from '../../shared/products.json';
+import { placePath, productPath } from '../../shared/slug.js';
+
+const PRODUCTS = (productsRaw.products as [string, number, string, string, string][]).map(([kind, , key, label]) => ({ kind: kind as 'market' | 'restaurant', key, label }));
 
 type Suggestion =
   | { type: 'cuisine'; key: string; label: string; flag: string }
   | { type: 'city'; key: string; label: string; count: number }
   | { type: 'state'; key: string; label: string }
-  | { type: 'place'; key: string; label: string; sub: string; kind: 'market' | 'restaurant' };
+  | { type: 'place'; key: string; label: string; sub: string; kind: 'market' | 'restaurant'; path: string }
+  | { type: 'product'; key: string; label: string; kind: 'market' | 'restaurant' };
 
 export default function SearchBox({ placeholder = 'Search a cuisine, city or place', size = 'md', onSearch }: {
   placeholder?: string; size?: 'md' | 'lg'; onSearch?: (q: string) => void;
@@ -39,13 +44,20 @@ export default function SearchBox({ placeholder = 'Search a cuisine, city or pla
       if (c.city.toLowerCase().startsWith(n)) out.push({ type: 'city', key: c.key, label: `${c.city}, ${c.state}`, count: c.count });
       if (out.filter((s) => s.type === 'city').length >= 3) break;
     }
+    let prods = 0;
+    for (const pr of PRODUCTS) {
+      if (pr.label.toLowerCase().split(/[\s/(]+/).some((w) => w.startsWith(n)) || pr.label.toLowerCase().startsWith(n)) {
+        out.push({ type: 'product', key: pr.key, label: pr.label, kind: pr.kind });
+        if (++prods >= 2) break;
+      }
+    }
     for (const [code, name] of Object.entries(US_STATES)) {
       if (name.toLowerCase().startsWith(n) || code.toLowerCase() === n) { out.push({ type: 'state', key: code, label: name }); break; }
     }
     let shown = 0;
     for (const p of places) {
       if (p.name.toLowerCase().includes(n)) {
-        out.push({ type: 'place', key: p.id, label: p.name, sub: p.city ? `${p.city}, ${p.state}` : US_STATES[p.state], kind: p.kind });
+        out.push({ type: 'place', key: p.id, label: p.name, sub: p.city ? `${p.city}, ${p.state}` : US_STATES[p.state], kind: p.kind, path: placePath(p) });
         if (++shown >= 5) break;
       }
     }
@@ -59,7 +71,8 @@ export default function SearchBox({ placeholder = 'Search a cuisine, city or pla
     if (s.type === 'cuisine') navigate(`/map?origin=origin:${s.key}`);
     else if (s.type === 'city') navigate(`/map?city=${encodeURIComponent(s.key)}`);
     else if (s.type === 'state') navigate(`/map?state=${s.key}`);
-    else navigate(`/place/${s.key}`);
+    else if (s.type === 'product') navigate(productPath(s.kind, s.key));
+    else navigate(s.path);
   };
 
   const submit = () => {
@@ -102,7 +115,7 @@ export default function SearchBox({ placeholder = 'Search a cuisine, city or pla
             <li key={`${s.type}-${s.key}`} id={`${listId}-${i}`} role="option" aria-selected={i === active}
               className={i === active ? 'on' : ''} onMouseDown={(e) => { e.preventDefault(); choose(s); }}>
               <span className="sg-icon" aria-hidden>
-                {s.type === 'cuisine' ? s.flag : s.type === 'place' ? (s.kind === 'market' ? <IconBasket width={16} height={16} /> : <IconBowl width={16} height={16} />) : <IconPin width={16} height={16} />}
+                {s.type === 'cuisine' ? s.flag : s.type === 'place' || s.type === 'product' ? (s.kind === 'market' ? <IconBasket width={16} height={16} /> : <IconBowl width={16} height={16} />) : <IconPin width={16} height={16} />}
               </span>
               <span className="sg-text">
                 <strong>{s.label}</strong>
@@ -111,6 +124,7 @@ export default function SearchBox({ placeholder = 'Search a cuisine, city or pla
                   {s.type === 'city' && `${s.count.toLocaleString()} ${s.count === 1 ? 'place' : 'places'}`}
                   {s.type === 'state' && 'State'}
                   {s.type === 'place' && s.sub}
+                  {s.type === 'product' && (s.kind === 'market' ? 'Compare grocery prices' : 'Compare dish prices')}
                 </small>
               </span>
             </li>

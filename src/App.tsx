@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { HashRouter, NavLink, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { configured } from './lib/supabase';
 import { StoreProvider, useStore } from './lib/store';
 import { BrandMark, IconCompass, IconHeart, IconMap, IconUser } from './components/Icons';
@@ -12,6 +12,11 @@ const Pricing = lazy(() => import('./pages/Pricing'));
 const Saved = lazy(() => import('./pages/Saved'));
 const Suggest = lazy(() => import('./pages/Suggest'));
 const Admin = lazy(() => import('./pages/Admin'));
+const Landing = lazy(() => import('./pages/Landing'));
+const Prices = lazy(() => import('./pages/Prices'));
+const Compare = lazy(() => import('./pages/Compare'));
+const Claim = lazy(() => import('./pages/Claim'));
+const OwnerEdit = lazy(() => import('./pages/OwnerEdit'));
 
 function Loading() {
   return <div className="route-loading" role="status"><span className="spinner" aria-hidden />Loading…</div>;
@@ -19,6 +24,7 @@ function Loading() {
 
 function Shell() {
   const { account, toast } = useStore();
+  const { pathname } = useLocation();
   const premium = account?.plan === 'premium';
   return (
     <div className="shell">
@@ -31,8 +37,8 @@ function Shell() {
         <nav className="topnav" aria-label="Main">
           <NavLink to="/" end>Discover</NavLink>
           <NavLink to="/map">Map</NavLink>
+          <NavLink to="/prices">Compare prices</NavLink>
           <NavLink to="/saved">Saved</NavLink>
-          <NavLink to="/suggest">Add a place</NavLink>
           {!premium && <NavLink to="/pricing">Premium</NavLink>}
           <NavLink to="/account" className="nav-account">{account ? 'Account' : 'Sign in'}</NavLink>
         </nav>
@@ -43,6 +49,15 @@ function Shell() {
             <Route path="/" element={<Discover />} />
             <Route path="/map" element={<Explore />} />
             <Route path="/place/:id" element={<Explore />} />
+            <Route path="/us/:state" element={<Landing />} />
+            <Route path="/us/:state/:city" element={<Landing />} />
+            <Route path="/us/:state/:city/:cuisine" element={<Landing />} />
+            <Route path="/cuisine/:cuisine" element={<Landing />} />
+            <Route path="/prices" element={<Prices />} />
+            <Route path="/groceries/:key" element={<Compare kind="market" />} />
+            <Route path="/dishes/:key" element={<Compare kind="restaurant" />} />
+            <Route path="/claim/:id" element={<Claim />} />
+            <Route path="/owner/:id" element={<OwnerEdit />} />
             <Route path="/account" element={<Account />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/saved" element={<Saved />} />
@@ -54,7 +69,7 @@ function Shell() {
       </main>
       <nav className="tabbar" aria-label="Main">
         <NavLink to="/" end><IconCompass />Discover</NavLink>
-        <NavLink to="/map" className={({ isActive }) => (isActive || location.hash.startsWith('#/place/') ? 'active' : '')}><IconMap />Map</NavLink>
+        <NavLink to="/map" className={({ isActive }) => (isActive || /^\/(place|us|cuisine)\//.test(pathname) ? 'active' : '')}><IconMap />Map</NavLink>
         <NavLink to="/saved"><IconHeart />Saved</NavLink>
         <NavLink to="/account"><IconUser />{account ? 'Account' : 'Sign in'}</NavLink>
       </nav>
@@ -76,9 +91,9 @@ export default function App() {
   if (!configured) return <SetupNeeded />;
   return (
     <StoreProvider>
-      <HashRouter>
+      <BrowserRouter>
         <Shell />
-      </HashRouter>
+      </BrowserRouter>
     </StoreProvider>
   );
 }

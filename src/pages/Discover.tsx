@@ -1,6 +1,7 @@
 // Home screen: search, places near you, cuisines and cities to browse. Loads without the map library.
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { placePath } from '../../shared/slug.js';
 import SearchBox from '../components/SearchBox';
 import { Badge, StatusBadge } from '../components/Badge';
 import { IconArrowRight, IconBasket, IconBowl, IconDownload, IconLocate, IconClose } from '../components/Icons';
@@ -14,7 +15,7 @@ import type { Place } from '../lib/types';
 function PlaceRow({ p, distance }: { p: Place; distance?: number }) {
   return (
     <li>
-      <Link className="result" to={`/place/${p.id}`}>
+      <Link className="result" to={placePath(p)}>
         <span className={`kind-mark ${p.kind}`} aria-label={p.kind === 'market' ? 'Market' : 'Restaurant'}>
           {p.kind === 'market' ? <IconBasket width={16} height={16} /> : <IconBowl width={16} height={16} />}
         </span>
@@ -145,9 +146,9 @@ export default function Discover() {
           </div>
           {account?.plan !== 'premium' && (
             <div className="callout callout-premium">
-              <h2>Every address, every phone number</h2>
-              <p>Premium shows contact details and directions for every place, and keeps your saved list on all your devices.</p>
-              <Link className="btn accent" to="/pricing">See Premium</Link>
+              <h2>Where is it cheapest?</h2>
+              <p>Compare what egusi, garri, oxtail or jollof costs across stores and restaurants near you.</p>
+              <Link className="btn accent" to="/prices">Compare prices</Link>
             </div>
           )}
         </section>

@@ -51,7 +51,7 @@ export function SignIn() {
 }
 
 export default function Account() {
-  const { session, account, refreshAccount, notify } = useStore();
+  const { session, account, refreshAccount, notify, places: allPlaces } = useStore();
   const [params] = useSearchParams();
   const [busy, setBusy] = useState(false);
 
@@ -75,6 +75,7 @@ export default function Account() {
   };
 
   const premium = account?.plan === 'premium';
+  const places = allPlaces;
   return (
     <div className="page narrow">
       <h1>Your account</h1>
@@ -82,11 +83,17 @@ export default function Account() {
       <div className={`plan-box ${premium ? 'premium' : ''}`}>
         <strong>{premium ? 'Premium' : 'Free plan'}</strong>
         {premium ? (
-          <p>Unlimited details and saved places.{account?.plan_expires_at && <> Renews {new Date(account.plan_expires_at).toLocaleDateString()}.</>}</p>
+          <p>Price comparison and unlimited saved places.{account?.plan_expires_at && <> Renews {new Date(account.plan_expires_at).toLocaleDateString()}.</>}</p>
         ) : (
-          <p>{account ? `${account.used_today} of ${account.quota}` : '…'} free detail views used today.</p>
+          <p>{account ? `${account.saved ?? 0} of ${account.saved_limit ?? 10}` : '…'} saved places used. Premium adds price comparison and unlimited saves.</p>
         )}
       </div>
+      {(account?.owns?.length ?? 0) > 0 && (
+        <div className="owned">
+          <h2>Your businesses</h2>
+          <ul>{account!.owns!.map((pid) => { const p = places.find((x) => x.id === pid); return <li key={pid}><Link to={`/owner/${pid}`}>{p?.name ?? 'Your listing'}</Link></li>; })}</ul>
+        </div>
+      )}
       <div className="stack">
         {!premium && <Link to="/pricing" className="btn accent">Upgrade to Premium</Link>}
         {account?.has_billing && <button className="btn" onClick={portal} disabled={busy}>Manage billing</button>}

@@ -1,0 +1,10 @@
+export function slugify(s: string | null | undefined): string;
+export function placeSlug(p: { name: string; city: string | null; state: string; id: string }): string;
+export function placePath(p: { name: string; city: string | null; state: string; id: string }): string;
+export function placeRef(param: string | null | undefined): { id: string } | { prefix: string } | null;
+export function matchesRef(id: string, ref: { id?: string; prefix?: string } | null): boolean;
+export function statePath(stateName: string): string;
+export function cityPath(stateName: string, city: string): string;
+export function cityCuisinePath(stateName: string, city: string, origin: string): string;
+export function cuisinePath(origin: string): string;
+export function productPath(kind: 'market' | 'restaurant', key: string): string;

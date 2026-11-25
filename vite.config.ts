@@ -2,9 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// GitHub Pages serves project sites at /<repo-name>/ — the deploy workflow sets VITE_BASE.
-// Cloudflare Pages serves from the domain root (CF_PAGES is set in its build); GitHub Pages from /<repo>/.
-const base = process.env.VITE_BASE ?? (process.env.CF_PAGES ? '/' : '/diaspora-market-map/');
+// Served from the domain root on Cloudflare Pages (the old GitHub Pages address only redirects).
+const base = process.env.VITE_BASE ?? '/';
 
 export default defineConfig({
   base,
@@ -35,9 +34,11 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,mjs,css,html,svg,png}'],
+        // Only the app shell: the thousands of pre-built pages for search engines stay out of the offline cache
+        globPatterns: ['**/*.{js,mjs,css,svg,png}', 'index.html'],
+        globIgnores: ['place/**', 'us/**', 'cuisine/**', 'groceries/**', 'dishes/**', 'prices/**'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-        navigateFallbackDenylist: [/\/data\//],
+        navigateFallbackDenylist: [/\/data\//, /\/sitemap.*\.xml$/, /\/robots\.txt$/],
         runtimeCaching: [
           {
             // Map snapshot: show the cached copy instantly, refresh it in the background

@@ -48,6 +48,7 @@ export interface Details {
 export interface DetailsResult {
   details?: Details;
   items?: PlaceItem[];
+  owner?: { claimed: boolean; you: boolean; pending: boolean };
   premium?: boolean;
   used?: number;
   quota?: number | null;
@@ -62,6 +63,9 @@ export interface Account {
   has_billing: boolean;
   used_today: number;
   quota: number;
+  saved?: number;
+  saved_limit?: number;
+  owns?: string[];
 }
 
 export interface Report {

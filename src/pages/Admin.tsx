@@ -6,7 +6,7 @@ import { originLabel, ORIGINS } from '../lib/taxonomy';
 import type { Details, Place, PlaceStatus, Report } from '../lib/types';
 import { ago, formatPrice } from '../lib/items';
 
-type Tab = 'reports' | 'new' | 'disputed' | 'items' | 'places';
+type Tab = 'reports' | 'new' | 'disputed' | 'items' | 'claims' | 'places';
 
 export default function Admin() {
   const { account, places, reloadPlaces, notify } = useStore();
@@ -20,6 +20,18 @@ export default function Admin() {
     if (error) notify(error.message); else setItemQueue(data as ItemQueue);
   }, [notify]);
   useEffect(() => { if (account?.is_admin) loadItems(); }, [account?.is_admin, loadItems]);
+  const [claims, setClaims] = useState<ClaimRow[]>([]);
+  const loadClaims = useCallback(async () => {
+    const { data, error } = await supabase.rpc('admin_claims');
+    if (error) notify(error.message); else setClaims(data as ClaimRow[]);
+  }, [notify]);
+  useEffect(() => { if (account?.is_admin) loadClaims(); }, [account?.is_admin, loadClaims]);
+  const decide = async (id: string, approve: boolean) => {
+    const { error } = await supabase.rpc('admin_decide_claim', { p_claim: id, p_approve: approve, p_note: null });
+    if (error) return notify(error.message);
+    notify(approve ? 'Owner confirmed' : 'Claim declined');
+    loadClaims();
+  };
   const [webReport, setWebReport] = useState<WebReport | null>(null);
   useEffect(() => {
     if (!account?.is_admin) return;
@@ -87,6 +99,7 @@ export default function Admin() {
         <button className={tab === 'new' ? 'on' : ''} onClick={() => setTab('new')}>New places ({suggestions.length})</button>
         <button className={tab === 'disputed' ? 'on' : ''} onClick={() => setTab('disputed')}>Disputed details ({disputed.length})</button>
         <button className={tab === 'items' ? 'on' : ''} onClick={() => setTab('items')}>Menus, products, websites ({itemQueue.flagged.length + (webReport?.closed_notice.length ?? 0)})</button>
+        <button className={tab === 'claims' ? 'on' : ''} onClick={() => setTab('claims')}>Owner claims ({claims.filter((c) => c.status === 'pending').length})</button>
         <button className={tab === 'places' ? 'on' : ''} onClick={() => { setEditing(null); setTab('places'); }}>Edit and verify</button>
       </div>
 
@@ -199,10 +212,38 @@ export default function Admin() {
         </>
       )}
 
+      {tab === 'claims' && (
+        <ul className="admin-list">
+          {!claims.length && <li className="muted">No one has claimed a listing yet.</li>}
+          {claims.map((c) => (
+            <li key={c.id} className="disputed-row">
+              <div>
+                <strong>{c.place_name}</strong> <span className="muted">{c.city ? `${c.city}, ` : ''}{c.state}</span>
+                <p className="muted small">
+                  {c.status === 'pending' ? 'Waiting for you' : c.status === 'verified' ? `Confirmed (${c.method === 'email_domain' ? 'business email' : c.method === 'website_code' ? 'code on their website' : 'by you'})` : 'Declined'}.
+                  {' '}{c.contact_name ?? 'No name'}{c.role ? `, ${c.role}` : ''}, {c.email}{c.contact_phone ? `, ${c.contact_phone}` : ''}.
+                  {c.message && <> "{c.message}"</>}
+                </p>
+                {c.status === 'pending' && <p className="small">To check: call the number listed for the business{c.listed_phone ? <>, <a href={`tel:${c.listed_phone.replace(/[^\d+]/g, '')}`}>{c.listed_phone}</a></> : ' (none listed)'}, and ask for {c.contact_name ?? 'them'}.</p>}
+              </div>
+              {c.status === 'pending' && (
+                <div className="actions">
+                  <button className="btn" onClick={() => decide(c.id, false)}>Decline</button>
+                  <button className="btn primary" onClick={() => decide(c.id, true)}>Confirm owner</button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
       {tab === 'places' && <PlaceEditor key={editing?.id ?? 'search'} initial={editing} />}
     </div>
   );
 }
+
+type ClaimRow = { id: string; status: string; method: string | null; created_at: string; place_id: string; place_name: string; city: string | null; state: string;
+  listed_phone: string | null; website: string | null; email: string; contact_name: string | null; contact_phone: string | null; role: string | null; message: string | null };
 
 type WebReport = {
   counts: Record<string, number>;

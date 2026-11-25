@@ -57,31 +57,30 @@ assert.equal(one(await db.query(`select status from places where osm_id='node/7'
 await asService(`select ingest_osm_places($1::jsonb)`, [JSON.stringify([mk(7)])]);
 assert.equal(one(await db.query(`select status from places where osm_id='node/7'`)).status, 'active', 'seen again → active');
 
-// ── public read / details hidden
+// ── public read; details are free for everyone (no sign-in, no daily limit)
 assert.equal((await asUser(null, `select id from places`)).rows.length, 7, 'anon sees map layer');
-assert.equal((await asUser(U(1), `select * from place_details`)).rows.length, 0, 'details not directly readable');
-assert.equal(one(await asUser(null, `select get_place_details(gen_random_uuid()) r`)).r.error, 'auth_required');
-
-// ── metered quota (5/day)
+assert.equal((await asUser(U(1), `select * from place_details`)).rows.length, 0, 'details table not directly readable');
 const ids = (await db.query(`select id from places order by osm_id`)).rows.map((x) => x.id);
-for (let i = 0; i < 5; i++) {
-  const res = one(await asUser(U(1), `select get_place_details($1) r`, [ids[i]])).r;
-  assert.ok(res.details.phone, `view ${i + 1} returns details`);
-  assert.equal(res.used, i + 1);
-}
-assert.equal(one(await asUser(U(1), `select get_place_details($1) r`, [ids[0]])).r.used, 5, 're-view same place is free');
-assert.equal(one(await asUser(U(1), `select get_place_details($1) r`, [ids[5]])).r.error, 'quota_exceeded');
-assert.equal(one(await asUser(U(1), `select my_account() r`)).r.used_today, 5);
+for (let i = 0; i < 7; i++) assert.ok(one(await asUser(null, `select get_place_details($1) r`, [ids[i]])).r.details.phone, `anon view ${i + 1}`);
+for (let i = 0; i < 7; i++) assert.ok(one(await asUser(U(1), `select get_place_details($1) r`, [ids[i]])).r.details.phone, 'no daily limit');
+assert.equal(one(await asUser(null, `select get_place_details($1) r`, [ids[0]])).r.premium, false);
+assert.equal('website_dropped' in one(await asUser(null, `select get_place_details($1) r`, [ids[0]])).r.details, false, 'internal fields stay private');
 
-// ── no self-upgrade; premium unlocks
+// ── saved places: 10 free, unlimited with Premium; no self-upgrade
 await asUser(U(1), `update profiles set plan = 'premium' where id = $1`, [U(1)]);
 assert.equal(one(await db.query(`select plan from profiles where id=$1`, [U(1)])).plan, 'free', 'cannot self-upgrade');
-await assert.rejects(asUser(U(1), `insert into favorites (user_id, place_id) values ($1, $2)`, [U(1), ids[0]]), /row-level security/);
+for (let i = 0; i < 7; i++) await asUser(U(1), `insert into favorites (user_id, place_id) values ($1, $2)`, [U(1), ids[i]]);
+await db.query(`insert into places (name, kind, state, lat, lng, source) select 'Extra '||g, 'market', 'TX', 29.7, -95.4, 'admin' from generate_series(1, 5) g`);
+const extra = (await db.query(`select id from places where name like 'Extra %' order by name`)).rows.map((x) => x.id);
+for (let i = 0; i < 3; i++) await asUser(U(1), `insert into favorites (user_id, place_id) values ($1, $2)`, [U(1), extra[i]]);
+await assert.rejects(asUser(U(1), `insert into favorites (user_id, place_id) values ($1, $2)`, [U(1), extra[3]]), /row-level security/, '11th save needs Premium');
+assert.deepEqual([one(await asUser(U(1), `select my_account() r`)).r.saved, one(await asUser(U(1), `select my_account() r`)).r.saved_limit], [10, 10]);
 await db.query(`update profiles set plan='premium', plan_expires_at = now() + interval '30 days' where id=$1`, [U(1)]);
-assert.ok(one(await asUser(U(1), `select get_place_details($1) r`, [ids[5]])).r.premium, 'premium bypasses quota');
-await asUser(U(1), `insert into favorites (user_id, place_id) values ($1, $2)`, [U(1), ids[0]]);
+await asUser(U(1), `insert into favorites (user_id, place_id) values ($1, $2)`, [U(1), extra[3]]);
+assert.ok(one(await asUser(U(1), `select get_place_details($1) r`, [ids[5]])).r.premium);
 await db.query(`update profiles set plan_expires_at = now() - interval '1 day' where id=$1`, [U(1)]);
 assert.equal(one(await asUser(U(1), `select my_account() r`)).r.plan, 'free', 'expired premium → free');
+await db.query(`delete from places where name like 'Extra %'`);
 
 // ── closed reports → possibly_closed
 await asUser(U(2), `insert into reports (place_id, kind) values ($1, 'closed')`, [ids[2]]);
@@ -274,5 +273,66 @@ wd = one(await db.query(`select website, website_status, website_dropped from pl
 assert.deepEqual(wd, { website: null, website_status: 'unreachable_twice', website_dropped: 'https://ov1.example/' }, 'second week: dropped');
 await asService(`select ingest_places($1::jsonb, 'overture')`, [JSON.stringify([wsRow({ website_status: 'ok', website_checked_at: '2026-12-16' })])]);
 assert.equal(one(await db.query(`select website from place_details where place_id = $1`, [wsPid])).website, 'https://ov1.example/', 'back when it answers');
+
+// ── products and price comparison
+await db.query(`update profiles set plan = 'free', plan_expires_at = null where id = $1`, [U(1)]);
+const mk1 = ids[0], mk2 = ids[2];   // markets (odd node numbers)
+assert.equal(one(await db.query(`select kind from places where id = $1`, [mk1])).kind, 'market');
+const addItem = (uid, place, name, cents, unit = null) => asUser(uid, `select upsert_place_item($1, $2, '', null, $3, $4, true, null) r`, [place, name, cents, unit]).then((x) => one(x).r);
+await addItem(U(1), mk1, 'Egusi seeds', 899, 'lb');
+await addItem(U(1), mk2, 'Ground Egusi 2lb bag', 1500, 'each');
+await addItem(U(1), mk2, 'Bitter kola', 500);
+assert.equal(one(await db.query(`select product_key k from place_items where name = 'Ground Egusi 2lb bag'`)).k, 'egusi');
+assert.equal(one(await db.query(`select product_key k from place_items where name = 'Bitter kola'`)).k, 'bitter-kola', 'specific product wins over "kola"');
+const ov2 = one(await asUser(null, `select product_overview() r`)).r;
+assert.deepEqual(ov2.find((x) => x.key === 'egusi'), { key: 'egusi', kind: 'market', label: 'Egusi (melon seeds)', places: 2, min_cents: 899, max_cents: 1500 });
+let cmp = one(await asUser(null, `select compare_prices('market', 'egusi', 29.7, -95.4) r`)).r;
+assert.equal(cmp.places, 2);
+assert.equal(cmp.premium, false);
+assert.ok(cmp.rows.every((x) => x.price_cents === null && x.per_lb_cents === null), 'free: which stores, not their prices');
+await db.query(`update profiles set plan='premium', plan_expires_at = now() + interval '30 days' where id=$1`, [U(4)]);
+cmp = one(await asUser(U(4), `select compare_prices('market', 'egusi') r`)).r;
+assert.deepEqual(cmp.rows.map((x) => [x.item, x.price_cents, x.per_lb_cents]), [['Ground Egusi 2lb bag', 1500, 750], ['Egusi seeds', 899, 899]], 'premium: cheapest per pound first');
+assert.equal(one(await asUser(null, `select compare_prices('market', 'nope') r`)).r.error, 'not_found');
+assert.equal(one(await db.query(`select item_pounds('Garri', '4 lb') p`)).p, '4');
+
+// ── owner claims
+await db.query(`update place_details set website = 'https://www.tp3market.com/', website_status = 'ok' where place_id = $1`, [mk2]);
+await db.query(`update auth.users set email = 'owner@tp3market.com' where id = $1`, [U(2)]);
+let cl = one(await asUser(U(2), `select claim_place($1, 'Ada', '713-555-0100', 'Owner', 'Hi') r`, [mk2])).r;
+assert.deepEqual([cl.status, cl.method], ['verified', 'email_domain'], 'email at the business domain verifies instantly');
+cl = one(await asUser(U(3), `select claim_place($1, 'Bo', null, 'Manager', null) r`, [mk2])).r;
+assert.equal(cl.status, 'pending', 'a gmail-style address waits for website code or admin');
+assert.match(cl.code, /^dmm-[0-9a-f]{16}$/);
+await db.query(`update auth.users set email = 'me@gmail.com' where id = $1`, [U(3)]);
+await db.query(`update place_details set website = 'https://gmail.com' where place_id = $1`, [mk1]);
+assert.equal(one(await asUser(U(3), `select claim_place($1) r`, [mk1])).r.status, 'pending', 'free mail domains never verify a business');
+assert.equal(one(await asUser(null, `select get_place_details($1) r`, [mk2])).r.owner.claimed, true);
+assert.equal(one(await asUser(U(2), `select get_place_details($1) r`, [mk2])).r.owner.you, true);
+// owners edit details (locked against the weekly import) and own their items
+assert.equal(one(await asUser(U(3), `select owner_update_place($1, '{"phone":"1"}'::jsonb) r`, [mk2])).r.error, 'forbidden');
+assert.equal(one(await asUser(U(2), `select owner_update_place($1, '{"website":"not a url"}'::jsonb) r`, [mk2])).r.error, 'bad_website');
+await asUser(U(2), `select owner_update_place($1, '{"phone":"+1 713 555 0199","opening_hours":"Mo-Su 09:00-21:00","description":"Family run since 1998"}'::jsonb)`, [mk2]);
+const od = one(await db.query(`select phone, opening_hours, description, locked from place_details where place_id = $1`, [mk2]));
+assert.deepEqual(od, { phone: '+1 713 555 0199', opening_hours: 'Mo-Su 09:00-21:00', description: 'Family run since 1998', locked: true });
+const oi = await addItem(U(2), mk2, 'Palm oil', 1099, 'bottle');
+assert.equal(oi.item.source, 'owner');
+assert.equal((await addItem(U(4), mk2, 'Palm oil', 999, 'bottle')).error, 'owner_item', 'the community cannot overwrite an owner\'s item');
+assert.equal(one(await asUser(U(2), `select remove_place_item($1) r`, [one(await db.query(`select id from place_items where name = 'Bitter kola'`)).id])).r.ok, true, 'owners can remove items at their place');
+// admin queue
+assert.equal(one(await asUser(U(5), `select admin_claims() r`)).r.filter((x) => x.status === 'pending').length, 2);
+const pend = one(await db.query(`select id from place_claims where user_id = $1 and place_id = $2`, [U(3), mk2])).id;
+await asUser(U(5), `select admin_decide_claim($1, false, 'Could not reach them')`, [pend]);
+assert.equal(one(await db.query(`select status from place_claims where id = $1`, [pend])).status, 'rejected');
+await assert.rejects(asUser(U(3), `select admin_decide_claim($1, true)`, [pend]), /admin only/);
+assert.equal((await asUser(U(3), `select * from place_claims`)).rows.length, 2, 'users see only their own claims');
+await assert.rejects(asUser(U(3), `update place_claims set status = 'verified'`), /permission denied/);
+
+// ── public export for the page builder
+const ex = one(await asUser(null, `select export_public_places(null, 3) r`)).r;
+assert.equal(ex.length, 3);
+assert.ok('phone' in ex[0] && 'items' in ex[0] && !('website_dropped' in ex[0]));
+const ex2 = one(await asUser(null, `select export_public_places($1, 1000) r`, [ex[2].id])).r;
+assert.ok(ex2.every((x) => x.id > ex[2].id), 'pages by id');
 
 console.log('✓ all database tests passed');

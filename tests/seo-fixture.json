@@ -1,0 +1,12 @@
+{
+  "places": [
+    {"id":"46bcec46-28ce-4208-9b3d-ed55751e075b","name":"Blue Nile Ethiopian Restaurant","kind":"restaurant","origins":["ethiopian"],"city":"HOUSTON","state":"TX","lat":29.7,"lng":-95.4,"status":"active","updated_at":"2026-11-20T10:00:00Z","street":"9400 Richmond Ave","postcode":"77063","phone":"+1 713-555-0100","website":"https://bluenile.example/","menu_url":"https://bluenile.example/menu","opening_hours":"Mo-Sa 11:00-21:00; Su off","description":"Family run <since> 1998","services":[],"claimed":true,
+     "items":[{"name":"Doro wat","section":"Mains","price_cents":1899,"price_unit":"plate","available":true,"product_key":"doro-wat"}]},
+    {"id":"a1b2c3d4-0000-0000-0000-000000000001","name":"Afrimart","kind":"market","origins":["nigerian","ghanaian"],"city":"Houston","state":"TX","lat":29.71,"lng":-95.41,"status":"possibly_closed","updated_at":"2026-11-21T10:00:00Z","street":null,"postcode":null,"phone":null,"website":null,"menu_url":null,"opening_hours":null,"description":null,"services":[],"claimed":false,"items":[]},
+    {"id":"b1b2c3d4-0000-0000-0000-000000000002","name":"Lagos Kitchen","kind":"restaurant","origins":["nigerian"],"city":"Houston","state":"TX","lat":29.72,"lng":-95.42,"status":"active","updated_at":"2026-11-22T10:00:00Z","street":"1 Main St","postcode":"77002","phone":null,"website":null,"menu_url":null,"opening_hours":null,"description":null,"services":[],"claimed":false,"items":[]},
+    {"id":"c1b2c3d4-0000-0000-0000-000000000003","name":"Naija Spot","kind":"restaurant","origins":["nigerian"],"city":"Houston","state":"TX","lat":29.73,"lng":-95.43,"status":"active","updated_at":"2026-11-22T10:00:00Z","street":null,"postcode":null,"phone":null,"website":null,"menu_url":null,"opening_hours":null,"description":null,"services":[],"claimed":false,"items":[]},
+    {"id":"d1b2c3d4-0000-0000-0000-000000000004","name":"Café Ré","kind":"restaurant","origins":["haitian"],"city":"Miami","state":"FL","lat":25.7,"lng":-80.2,"status":"active","updated_at":"2026-11-22T10:00:00Z","street":null,"postcode":null,"phone":null,"website":null,"menu_url":null,"opening_hours":null,"description":null,"services":[],"claimed":false,"items":[]}
+  ],
+  "product_overview": [{"key":"doro-wat","kind":"restaurant","label":"Doro wat","places":1,"min_cents":1899,"max_cents":1899}],
+  "compare": {"restaurant:doro-wat": {"places":1,"rows":[{"place_id":"46bcec46-28ce-4208-9b3d-ed55751e075b","name":"Blue Nile Ethiopian Restaurant","city":"HOUSTON","state":"TX","item":"Doro wat"}]}}
+}

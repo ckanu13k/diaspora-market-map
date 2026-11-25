@@ -5,22 +5,22 @@ import { useStore } from '../lib/store';
 import { ORIGIN, prettyHours, SERVICE_LABEL, US_STATES } from '../lib/taxonomy';
 import type { DetailsResult, Place } from '../lib/types';
 import { Badge, StatusBadge } from './Badge';
-import { IconCheck, IconClock, IconClose, IconFlag, IconGlobe, IconHeart, IconHeartFilled, IconLock, IconPhone, IconPin, IconRoute, IconShare, IconThumbDown, IconThumbUp } from './Icons';
+import { IconCheck, IconClock, IconClose, IconFlag, IconGlobe, IconHeart, IconHeartFilled, IconPhone, IconPin, IconRoute, IconShare, IconThumbDown, IconThumbUp } from './Icons';
 import ReportDialog from './ReportDialog';
 import PlaceItems from './PlaceItems';
 import { formatMiles, miles } from '../lib/geo';
+import { placePath } from '../../shared/slug.js';
 
 // Date-only values (2026-11-25) are calendar days, not UTC midnight: read them as local noon
 const fmtDate = (s: string | null) => (s ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s}T12:00:00` : s).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : null);
 
 export default function PlacePanel({ place, onClose }: { place: Place; onClose: () => void }) {
-  const { session, account, refreshAccount, favorites, toggleFavorite, notify, patchPlace, userLoc } = useStore();
+  const { session, account, favorites, toggleFavorite, notify, patchPlace, userLoc } = useStore();
   const [res, setRes] = useState<DetailsResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [reporting, setReporting] = useState<false | 'fix' | 'wrong'>(false);
   const [myVote, setMyVote] = useState<1 | -1 | null>(null);
   const [voting, setVoting] = useState(false);
-  const premium = account?.plan === 'premium' || account?.is_admin;
 
   const loadDetails = async () => {
     setLoading(true);
@@ -28,15 +28,14 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
     setLoading(false);
     if (error) return notify(error.message);
     setRes(data as DetailsResult);
-    refreshAccount();
   };
 
-  // Premium members see details straight away; free members choose when to use a daily view.
+  // Details are free for everyone: load them as soon as the place opens
   useEffect(() => {
     setRes(null);
-    if (session && premium) loadDetails();
+    loadDetails();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [place.id, session?.user.id, premium]);
+  }, [place.id, session?.user.id]);
 
   // The signed-in user's own thumbs up/down for this place, if any
   useEffect(() => {
@@ -76,12 +75,12 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
   const fav = async () => {
     const err = await toggleFavorite(place.id);
     if (err === 'auth_required') notify('Sign in to save places');
-    else if (err === 'premium_required') notify('Saving places is part of Premium');
+    else if (err === 'premium_required') notify(`Free accounts save up to ${account?.saved_limit ?? 10} places. Premium saves as many as you like.`);
     else if (err) notify(err);
   };
 
   const share = async () => {
-    const url = `${window.location.origin}${window.location.pathname}#/place/${place.id}`;
+    const url = `${window.location.origin}${placePath(place)}`;
     try {
       if (navigator.share) await navigator.share({ title: place.name, url });
       else { await navigator.clipboard.writeText(url); notify('Link copied'); }
@@ -90,7 +89,6 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
 
   const d = res?.details;
   const address = d && [d.street, place.city, place.state, d.postcode].filter(Boolean).join(', ');
-  const remaining = account && !premium ? Math.max(0, account.quota - account.used_today) : null;
   const where = `${place.city ? `${place.city}, ` : ''}${US_STATES[place.state] ?? place.state}`;
   const saved = favorites.has(place.id);
 
@@ -109,7 +107,7 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
       </div>
 
       <div className="trust">
-        <div className="badges"><Badge place={place} /><StatusBadge place={place} />{place.featured && <span className="badge featured">Featured</span>}</div>
+        <div className="badges"><Badge place={place} /><StatusBadge place={place} />{place.featured && <span className="badge featured">Featured</span>}{res?.owner?.claimed && <span className="badge owner">Run by the owner</span>}</div>
         <p>
           {place.verification === 'verified' && place.verified_at && <>Checked by our team on {fmtDate(place.verified_at)}. </>}
           {place.confirm_count > 0 && <>{place.confirm_count} {place.confirm_count === 1 ? 'person has' : 'people have'} confirmed it's open in the last 90 days. </>}
@@ -123,29 +121,7 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
       </div>
 
       <section className="details" aria-live="polite">
-        {!d && !loading && res?.error !== 'quota_exceeded' && (
-          session ? (
-            <button className="reveal" onClick={loadDetails}>
-              <IconLock width={18} height={18} />
-              <span>
-                <strong>Show address, phone, hours, {place.kind === 'market' ? 'products' : 'menu'} and directions</strong>
-                {remaining !== null && <small>Uses 1 of your {remaining} free views left today</small>}
-              </span>
-            </button>
-          ) : (
-            <div className="gate">
-              <p><strong>Contact details, {place.kind === 'market' ? 'product lists' : 'menus'} and prices are for members.</strong> A free account shows {account?.quota ?? 5} places a day. Premium shows every place.</p>
-              <Link className="btn primary" to="/account">Create a free account</Link>
-            </div>
-          )
-        )}
-        {loading && <p className="loading">Loading details…</p>}
-        {res?.error === 'quota_exceeded' && (
-          <div className="gate">
-            <p><strong>You've used today's {res.quota} free views.</strong> They reset at midnight UTC. Premium shows every place, any time.</p>
-            <Link className="btn accent" to="/pricing">See Premium</Link>
-          </div>
-        )}
+        {loading && !d && <p className="loading">Loading details…</p>}
         {d && (
           <ul className="facts">
             {address && <li><IconPin /><span>{address}</span></li>}
@@ -197,6 +173,14 @@ export default function PlacePanel({ place, onClose }: { place: Place; onClose: 
         <button className="action" onClick={() => (session ? setReporting('fix') : notify('Sign in to suggest a fix'))}><IconFlag />Suggest a fix</button>
       </div>
 
+      {res?.owner && (
+        <p className="owner-line">
+          {res.owner.you ? <Link to={`/owner/${place.id}`}>Edit your listing</Link>
+            : res.owner.pending ? <>Your claim on this listing is being checked. <Link to={`/claim/${place.id}`}>See how to finish it</Link></>
+            : !res.owner.claimed ? <>Own this business? <Link to={`/claim/${place.id}`}>Claim this listing</Link> to keep its details and {place.kind === 'market' ? 'products' : 'menu'} up to date.</>
+            : account?.is_admin ? <Link to={`/owner/${place.id}`}>Edit listing (admin)</Link> : null}
+        </p>
+      )}
       {place.source === 'overture' && <p className="source">Listing from Overture Maps Foundation, updated {fmtDate(place.updated_at)}.</p>}
       {place.source === 'community' && <p className="source">Added by the community and checked by our team.</p>}
       {reporting === 'fix' && <ReportDialog place={place} onClose={() => setReporting(false)} />}

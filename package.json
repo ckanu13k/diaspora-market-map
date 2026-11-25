@@ -9,7 +9,7 @@
     "typecheck": "tsc -p .",
     "test": "node tests/db.test.mjs && node tests/overture.test.mjs && node tests/snapshot.test.mjs && node tests/web.test.mjs && node tests/web-net.test.mjs",
     "snapshot": "node scripts/snapshot.mjs",
-    "build:cloudflare": "(npm run snapshot || echo \"snapshot skipped\") && npm run build"
+    "build:cloudflare": "(npm run snapshot || echo \"snapshot skipped\") && npm run build && node scripts/seo/build-pages.mjs dist"
   },
   "license": "UNLICENSED",
   "dependencies": {

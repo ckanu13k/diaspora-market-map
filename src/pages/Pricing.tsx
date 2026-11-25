@@ -23,8 +23,8 @@ export default function Pricing() {
   return (
     <div className="pricing">
       <section className="pricing-hero">
-        <h1>Find the taste of home, anywhere in the US.</h1>
-        <p>{total} African and Caribbean markets and restaurants across {states} states, checked by our team and by people who shop and eat there.</p>
+        <h1>Know where it's cheapest before you leave home.</h1>
+        <p>Everything about {total} African and Caribbean markets and restaurants across {states} states is free. Premium compares prices across them.</p>
       </section>
 
       <div className="plans">
@@ -33,8 +33,10 @@ export default function Pricing() {
           <p className="price">$0</p>
           <ul>
             <li><IconCheck />The full map, search and filters</li>
-            <li><IconCheck />Address, phone, hours and directions for 5 places a day</li>
-            <li><IconCheck />Confirm places and suggest fixes</li>
+            <li><IconCheck />Address, phone, hours and directions for every place</li>
+            <li><IconCheck />Menus and product lists with prices</li>
+            <li><IconCheck />Which places sell a product, and the price range</li>
+            <li><IconCheck />Save up to 10 places</li>
           </ul>
           {!session ? <Link className="btn" to="/account">Create a free account</Link> : <span className="plan-current">Your current plan{premium ? ' before Premium' : ''}</span>}
         </section>
@@ -44,10 +46,10 @@ export default function Pricing() {
           <p className="price">{PRICE_MONTHLY}</p>
           <p className="price-alt">or {PRICE_YEARLY} billed yearly</p>
           <ul>
-            <li><IconCheck />Every address, phone number and opening time</li>
-            <li><IconCheck />Directions to any place in one tap</li>
-            <li><IconCheck />Saved places on all your devices</li>
-            <li><IconCheck />Helps keep independent shops listed and verified</li>
+            <li><IconCheck />Compare prices: every store's price for a product, cheapest first</li>
+            <li><IconCheck />Price per pound worked out where the size is listed</li>
+            <li><IconCheck />Save as many places as you like, on all your devices</li>
+            <li><IconCheck />Helps keep independent shops listed and checked</li>
           </ul>
           {premium ? (
             <span className="plan-current">You're on Premium</span>

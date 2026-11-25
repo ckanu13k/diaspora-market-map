@@ -14,6 +14,7 @@ export interface PlaceItem {
   confirm_count: number;
   changed_count: number;
   mine: boolean;
+  product_key?: string | null;
 }
 
 /** Section names offered when adding an item. People can type their own. */

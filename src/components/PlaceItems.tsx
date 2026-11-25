@@ -4,6 +4,11 @@ import { useStore } from '../lib/store';
 import type { Place } from '../lib/types';
 import { ago, COMMON_ITEMS, formatPrice, isStale, parsePrice, SECTIONS, UNITS, type PlaceItem } from '../lib/items';
 import { IconPlus, IconSearch, IconThumbUp } from './Icons';
+import { Link } from 'react-router-dom';
+import productsRaw from '../../shared/products.json';
+import { productPath } from '../../shared/slug.js';
+
+const PRODUCT_LABEL = new Map((productsRaw.products as [string, number, string, string, string][]).map(([k, , key, label]) => [`${k}:${key}`, label]));
 
 const SHOW_FIRST = 8;
 
@@ -23,6 +28,7 @@ const ERRORS: Record<string, string> = {
   bad_name: 'Give the item a name (up to 80 characters).',
   not_found: 'That item was just removed. Reload the place to see the latest list.',
   forbidden: 'Only the person who added it can delete it, within a day. Mark it as changed instead.',
+  owner_item: 'The owner keeps this item up to date. Mark it as changed if it looks wrong.',
 };
 
 export default function PlaceItems({ place, items, website, menuUrl = null, sourceUrl = null, onItems }: {
@@ -52,6 +58,7 @@ export default function PlaceItems({ place, items, website, menuUrl = null, sour
   }, [session?.user.id, items.map((i) => i.id).join()]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fromSite = items.filter((i) => i.source === 'website').length;
+  const compareKeys = [...new Set(items.map((i) => i.product_key).filter((k): k is string => Boolean(k)))].slice(0, 6);
   const lastChecked = useMemo(
     () => items.reduce<string | null>((m, i) => (!m || i.last_confirmed_at > m ? i.last_confirmed_at : m), null),
     [items],
@@ -137,6 +144,12 @@ export default function PlaceItems({ place, items, website, menuUrl = null, sour
         <h3 id={`${uid}-h`}>{title}</h3>
         {items.length > 0 && lastChecked && <span className="items-sub">{items.length} {items.length === 1 ? 'item' : 'items'}, last checked {ago(lastChecked)}</span>}
       </div>
+      {compareKeys.length > 0 && (
+        <p className="compare-line">
+          Compare prices:{' '}
+          {compareKeys.map((k, i) => <span key={k}>{i > 0 && ', '}<Link to={productPath(place.kind, k)}>{PRODUCT_LABEL.get(`${place.kind}:${k}`) ?? k}</Link></span>)}
+        </p>
+      )}
       {fromSite > 0 && (
         <p className="items-src">
           {fromSite === items.length ? 'From' : `${fromSite} of these come from`} <a href={sourceUrl ?? menuUrl ?? website ?? '#'} target="_blank" rel="noreferrer">their website</a>. Prices in store can differ.
