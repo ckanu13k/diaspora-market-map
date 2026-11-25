@@ -295,6 +295,9 @@ cmp = one(await asUser(U(4), `select compare_prices('market', 'egusi') r`)).r;
 assert.deepEqual(cmp.rows.map((x) => [x.item, x.price_cents, x.per_lb_cents]), [['Ground Egusi 2lb bag', 1500, 750], ['Egusi seeds', 899, 899]], 'premium: cheapest per pound first');
 assert.equal(one(await asUser(null, `select compare_prices('market', 'nope') r`)).r.error, 'not_found');
 assert.equal(one(await db.query(`select item_pounds('Garri', '4 lb') p`)).p, '4');
+assert.equal(one(await db.query(`select match_product('restaurant', 'Jollof rice party tray (feeds 20)') k`)).k, null, 'catering trays are not compared with plates');
+assert.equal(one(await db.query(`select match_product('market', 'Maggi cubes case of 24') k`)).k, null);
+assert.equal(one(await db.query(`select match_product('restaurant', 'Jollof rice') k`)).k, 'jollof-rice');
 
 // ── owner claims
 await db.query(`update place_details set website = 'https://www.tp3market.com/', website_status = 'ok' where place_id = $1`, [mk2]);
